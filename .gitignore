@@ -3,3 +3,7 @@ Makefile
 CMakeFiles
 kiq_telegram
 cmake_install.cmake
+tag
+.token
+libkeleqram.a
+tags
