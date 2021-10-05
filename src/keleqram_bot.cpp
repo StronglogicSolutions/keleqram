@@ -7,9 +7,9 @@ using  Duration   = std::chrono::seconds;
 using  MessagePtr = TgBot::Message::Ptr;
 
 static TimePoint         initial_time = std::chrono::system_clock::now();
-static const std::string KSTYLEYOCHAT   {"KSTYLEYO"};
+static const std::string CHATGROUP      {""};
 static const char*       START_COMMAND  {"start"};
-static const char*       TOKEN          {};
+static const char*       TOKEN          {""};
 static const uint32_t    THIRTY_MINS    {1800};
 static const uint32_t    KANYE_URL_INDEX   {0};
 static const uint32_t    ZENQUOTE_URL_INDEX{1};
@@ -154,7 +154,7 @@ int RunMain()
       log("Polling");
       longPoll.start();
       if (ActionTimer())
-        bot.getApi().sendMessage(KSTYLEYOCHAT, GetRequest(ZENQUOTE_URL_INDEX));
+        bot.getApi().sendMessage(CHATGROUP, GetRequest(ZENQUOTE_URL_INDEX));
     }
   }
   catch (TgBot::TgException& e)
