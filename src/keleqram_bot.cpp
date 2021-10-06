@@ -37,10 +37,12 @@ static const int64_t     CHAT_IDs[] {
 static kint8_t chat_idx{};
 
 /**
- * Utils
- */
+  ┌──────────────────────────────────────────────────────────┐
+  │░░░░░░░░░░░░░░░░░░░░░░░░░░ Helpers ░░░░░░░░░░░░░░░░░░░░░░░│
+  └──────────────────────────────────────────────────────────┘
+*/
 template<typename... Args>
-inline void log(Args... args) {
+static void log(Args... args) {
   for (const auto& s : {args...})
     std::cout << s;
   std::cout << std::endl;
@@ -53,7 +55,7 @@ static void LogMessage(const MessagePtr& message)
       std::string{" said the following: \n"}, message->text);
 }
 
-bool ActionTimer(uint32_t duration = THIRTY_MINS)
+static bool ActionTimer(uint32_t duration = THIRTY_MINS)
 {
   const TimePoint now = std::chrono::system_clock::now();
   const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - initial_time).count();
@@ -172,6 +174,12 @@ static std::string HandleRequest(std::string message)
 }
 
 /**
+  ┌────────────────────────────────────────────────────────┐
+  │░░░░░░░░░░░░░░░░░░░░░░ KeleqramBot ░░░░░░░░░░░░░░░░░░░░░│
+  └────────────────────────────────────────────────────────┘
+*/
+
+/**
  * KeleqramBot
  *
  * @constructor
@@ -182,6 +190,7 @@ KeleqramBot::KeleqramBot()
   m_poll(m_bot)
 {
   Hello(m_bot);
+  SetListeners();
 }
 
 /**
@@ -192,14 +201,6 @@ void KeleqramBot::Poll()
   m_poll.start();
   if (ActionTimer())
     SendMessage(CHAT_IDs[chat_idx++], GetRequest(ZENQUOTE_URL_INDEX));
-}
-
-/**
- * Init
- */
-void KeleqramBot::Init()
-{
-  SetListeners();
 }
 
 /**
@@ -272,7 +273,6 @@ int RunMain()
   try
   {
     KeleqramBot k_bot{};
-    k_bot.Init();
 
     for (;;)
       k_bot.Poll();

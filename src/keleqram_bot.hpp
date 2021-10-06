@@ -18,7 +18,7 @@ using TelegramBot = TgBot::Bot;
 using TelegramAPI = TgBot::Api;
 
 KeleqramBot();
-void Init();
+
 void SetListeners();
 void Poll();
 void HandleMessage(MessagePtr message);
