@@ -3,6 +3,6 @@
 
 int main(int argc, char** argv)
 {
-  return RunMain();
+  return keleqram::RunMain();
 }
 
