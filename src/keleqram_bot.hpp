@@ -22,11 +22,19 @@ void Init();
 void SetListeners();
 void Poll();
 void HandleMessage(MessagePtr message);
+void SendMessage(const int64_t& id, const std::string& text);
 
 private:
-TelegramBot m_bot;
-TelegramAPI m_api;
-LongPoll    m_poll;
+bool IsReply(const int32_t& id) const;
+
+TelegramBot          m_bot;
+TelegramAPI          m_api;
+LongPoll             m_poll;
+uint32_t             tx;
+uint32_t             rx;
+uint32_t             tx_err;
+uint32_t             rx_err;
+std::vector<int32_t> tx_msg_ids;
 };
 
 class kint8_t

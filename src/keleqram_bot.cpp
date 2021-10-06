@@ -6,7 +6,8 @@
 namespace keleqram {
 static TimePoint         initial_time = std::chrono::system_clock::now();
 static const char*       START_COMMAND  {"start"};
-static const char*       TOKEN          {""};
+static const char*       TOKEN          {"2022095039:AAGVKF0fpYkCby7KHJ2dLhEcP_lQziTx7_M"};
+static const char*       DEFAULT_REPLY  {"Defeat Global Fascism"};
 static const uint32_t    THIRTY_MINS    {1800};
 static const uint32_t    KANYE_URL_INDEX   {0};
 static const uint32_t    ZENQUOTE_URL_INDEX{1};
@@ -24,15 +25,16 @@ static const char*       URLS[] {
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=LINK&tsyms=USD",
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD"
 };
-static const char*       CHAT_IDs[] {
-
+static const int64_t     CHAT_IDs[] {
+  -261325234,
+  -229652245,
+  -1001499149725
 };
 
 /**
  * Global var
  */
-static std::vector<int32_t> sent_message_ids{};
-static kint8_t              chat_room_idx   {};
+static kint8_t chat_idx{};
 
 /**
  * Utils
@@ -76,14 +78,6 @@ static std::string ToLower(std::string& s)
 {
   std::transform(s.begin(), s.end(), s.begin(), [](char c) { return tolower(c); });
   return s;
-}
-
-bool IsReply(int32_t id)
-{
-  for (const auto& message_id : sent_message_ids)
-    if (message_id == id)
-      return true;
-  return false;
 }
 
 static void Hello(TgBot::Bot& bot)
@@ -153,11 +147,14 @@ std::string GetRequest(uint32_t url_index)
 
 /**
  * HandleRequest
+ * @static
+ *
+ * @param [in] {std::string}
  */
 static std::string HandleRequest(std::string message)
 {
   if (message.find("@KIQ_TelegramBot")         != std::string::npos)
-    return "Defeat Global Fascism";
+    return DEFAULT_REPLY;
   else
   if (ToLower(message).find("/kanye") != std::string::npos)
     return GetRequest(KANYE_URL_INDEX);
@@ -174,6 +171,11 @@ static std::string HandleRequest(std::string message)
   return "";
 }
 
+/**
+ * KeleqramBot
+ *
+ * @constructor
+ */
 KeleqramBot::KeleqramBot()
 : m_bot(TOKEN),
   m_api(m_bot.getApi()),
@@ -182,50 +184,89 @@ KeleqramBot::KeleqramBot()
   Hello(m_bot);
 }
 
+/**
+ * Poll
+ */
 void KeleqramBot::Poll()
 {
-  log("Polling");
   m_poll.start();
   if (ActionTimer())
-    m_api.sendMessage(CHAT_IDs[chat_room_idx++], GetRequest(ZENQUOTE_URL_INDEX));
+    SendMessage(CHAT_IDs[chat_idx++], GetRequest(ZENQUOTE_URL_INDEX));
 }
 
+/**
+ * Init
+ */
 void KeleqramBot::Init()
 {
   SetListeners();
 }
 
+/**
+ * SetListeners
+ */
 void KeleqramBot::SetListeners()
 {
   m_bot.getEvents().onCommand   (START_COMMAND, [this](MessagePtr message)
   {
-       m_api.sendMessage(message->chat->id, "Hi!"); }
-  );
+    SendMessage(message->chat->id, "Hi!");
+  });
   m_bot.getEvents().onAnyMessage([this](MessagePtr message)
   {
     HandleMessage(message);
   });
 }
 
+/**
+ * IsReply
+ *
+ * @param [in] {int32_t}
+ */
+bool KeleqramBot::IsReply(const int32_t& id) const
+{
+  for (const auto& message_id : tx_msg_ids)
+    if (message_id == id) return true;
+  return false;
+}
+
+/**
+ * SendMessage
+ *
+ * @param [in] {int64_t}
+ * @param [in] {std::string}
+ */
+void KeleqramBot:: SendMessage(const int64_t& id, const std::string& text)
+{
+  if (!text.empty())
+    tx_msg_ids.emplace_back(m_api.sendMessage(id, text)->messageId);
+}
+
+/**
+ * HandleMessage
+ *
+ * @param [in] {MessagePtr}
+ */
 void KeleqramBot::HandleMessage(MessagePtr message)
 {
-  const auto reply_message = message->replyToMessage;
-
-  if (StringTools::startsWith(message->text, "/start")) return;
-
+  const MessagePtr reply_message = message->replyToMessage;
+  const int64_t&   id            = message->chat->id;
   LogMessage(message);
 
-  if (reply_message && IsReply(reply_message->messageId))
-    sent_message_ids.emplace_back(m_api.sendMessage(message->chat->id, "I hear you, bitch")->messageId);
+  if (StringTools::startsWith(message->text, "/start"))
+    (void)(0);
   else
-  {
-    const std::string text = HandleRequest(message->text);
-      if (!text.empty())
-        sent_message_ids.emplace_back(m_api.sendMessage(message->chat->id, text)->messageId);
-  }
+  if (reply_message && IsReply(reply_message->messageId))
+    SendMessage(id, "I hear you, bitch");
+  else
+    SendMessage(id, HandleRequest(message->text));
 }
 
 
+/**
+ * RunMain
+ *
+ * Program entry
+ */
 int RunMain()
 {
   try
