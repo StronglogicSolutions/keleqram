@@ -6,14 +6,14 @@
 namespace keleqram {
 static TimePoint         initial_time = std::chrono::system_clock::now();
 static const char*       START_COMMAND  {"start"};
-static const char*       TOKEN          {"2022095039:AAGVKF0fpYkCby7KHJ2dLhEcP_lQziTx7_M"};
+static const char*       TOKEN          {""};
 static const char*       DEFAULT_REPLY  {"Defeat Global Fascism"};
 static const uint32_t    THIRTY_MINS    {1800};
 static const uint32_t    KANYE_URL_INDEX   {0};
 static const uint32_t    ZENQUOTE_URL_INDEX{1};
 static const uint32_t    BTC_URL_INDEX     {2};
 static const uint32_t    INSULT_URL_INDEX  {3};
-static const uint32_t    WIKI_API_INDEX    {4};
+static const uint32_t    WIKI_URL_INDEX    {4};
 static const uint32_t    LINK_URL_INDEX    {5};
 static const uint32_t    ETH_URL_INDEX     {6};
 static const char*       URLS[] {
@@ -21,14 +21,12 @@ static const char*       URLS[] {
   "https://zenquotes.io/api/random",
   "https://blockchain.info/ticker",
   "https://evilinsult.com/generate_insult.php?lang=en&type=json",
-  "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=Roy%20Nelson&utf8=&format=json",
+  "https://en.wikipedia.org/w/api.php?action=query&utf8=&format=json&list=search&srsearch=",
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=LINK&tsyms=USD",
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD"
 };
 static const int64_t     CHAT_IDs[] {
-  -261325234,
-  -229652245,
-  -1001499149725
+
 };
 
 /**
@@ -148,6 +146,47 @@ std::string GetRequest(uint32_t url_index)
 }
 
 /**
+ *
+ */
+static std::string ExtractWikiText(const nlohmann::json& json)
+{
+  const auto  item = json["query"]["search"][0];
+  std::string s    = item["snippet"].get<std::string>();
+
+  for (auto it = s.find("</span>"); it != std::string::npos;)
+  {
+    s   = s.substr(it + 7);
+    it  = s.find("</span>");
+  }
+
+  return item["title"].get<std::string>() + ":\n" + s;
+}
+
+/**
+ *
+ */
+static std::string GetWiki(std::string message)
+{
+  const auto IsValid = [](const nlohmann::json& json) -> bool
+  {
+    return (!json.is_null() && json.is_object() && !json["query"]["search"].empty());
+  };
+
+    std::string text{};
+    const std::string query = StringTools::urlEncode(message.substr(8));
+    RequestResponse   response{cpr::Get(cpr::Url{URLS[WIKI_URL_INDEX]} + query, cpr::VerifySsl{false})};
+    if (!response.error)
+    {
+      auto json = response.json();
+      if (IsValid(json))
+        text +=  ExtractWikiText(json);
+      else
+        text += query + " was not found.";
+    }
+    return text;
+}
+
+/**
  * HandleRequest
  * @static
  *
@@ -170,6 +209,8 @@ static std::string HandleRequest(std::string message)
     return GetRequest(ETH_URL_INDEX);
   if (ToLower(message) == "/insult")
     return GetRequest(INSULT_URL_INDEX);
+  if (ToLower(message).find("/person") != std::string::npos)
+    return GetWiki(message);
   return "";
 }
 
