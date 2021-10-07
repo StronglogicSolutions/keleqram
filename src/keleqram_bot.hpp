@@ -8,7 +8,15 @@ using  Duration          = std::chrono::seconds;
 using  MessagePtr        = TgBot::Message::Ptr;
 using  TelegramException = TgBot::TgException;
 
-bool IsReply(int32_t id);
+const extern int64_t DEFAULT_CHAT_ID;
+
+template<typename... Args>
+static void log(Args... args)
+{
+  for (const auto& s : {args...})
+    std::cout << s;
+  std::cout << std::endl;
+}
 
 class KeleqramBot
 {
@@ -17,12 +25,13 @@ using LongPoll    = TgBot::TgLongPoll;
 using TelegramBot = TgBot::Bot;
 using TelegramAPI = TgBot::Api;
 
-KeleqramBot();
+KeleqramBot(const std::string& token = "");
 
 void SetListeners();
 void Poll();
 void HandleMessage(MessagePtr message);
-void SendMessage(const int64_t& id, const std::string& text);
+void SendMessage(const std::string& text, const int64_t& id = DEFAULT_CHAT_ID);
+void SendPhoto(const std::string& url, const int64_t& id = DEFAULT_CHAT_ID);
 
 private:
 bool IsReply(const int32_t& id) const;

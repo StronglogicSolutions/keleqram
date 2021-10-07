@@ -94,4 +94,10 @@ const std::string GetError() const {
 }
 };
 
+static void SaveToFile(const std::string& data, const std::string& path)
+{
+  std::ofstream o{path};
+  o << data;
+}
+
 } // namespace kwitter

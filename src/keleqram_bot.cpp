@@ -29,6 +29,7 @@ static const int64_t     CHAT_IDs[] {
 
 };
 
+const int64_t DEFAULT_CHAT_ID = *(CHAT_IDs);
 /**
  * Global var
  */
@@ -39,12 +40,6 @@ static kint8_t chat_idx{};
   │░░░░░░░░░░░░░░░░░░░░░░░░░░ Helpers ░░░░░░░░░░░░░░░░░░░░░░░│
   └──────────────────────────────────────────────────────────┘
 */
-template<typename... Args>
-static void log(Args... args) {
-  for (const auto& s : {args...})
-    std::cout << s;
-  std::cout << std::endl;
-}
 
 static void LogMessage(const MessagePtr& message)
 {
@@ -74,15 +69,55 @@ static std::string FloatToDecimalString(float n)
   return ss.str();
 }
 
-static std::string ToLower(std::string& s)
+static std::string ToLower(const std::string& s)
 {
-  std::transform(s.begin(), s.end(), s.begin(), [](char c) { return tolower(c); });
-  return s;
+  std::string t{s};
+  std::transform(t.begin(), t.end(), t.begin(), [](char c) { return tolower(c); });
+  return t;
 }
 
 static void Hello(TgBot::Bot& bot)
 {
   printf("Bot username: %s\n", bot.getApi().getMe()->username.c_str());
+}
+
+static std::string GetMimeType(const std::string& path)
+{
+  const auto it = path.find_last_of('/');
+  if (it != std::string::npos)
+  {
+    const auto extension = ToLower(path.substr(it + 1));
+
+    if (extension == "jpg" || extension == "jpeg")
+      return "image/jpeg";
+    else
+    if (extension == "png")
+      return "image/png";
+    else
+    if (extension == "gif")
+      return "image/gif";
+  }
+
+  return "";
+}
+
+static std::string FetchTemporaryFile(const std::string& full_url, const bool verify_ssl = true)
+{
+  auto ext_end = full_url.find_first_of('?');
+  ext_end      = ext_end == std::string::npos ? full_url.size() : ext_end;
+  auto url     = full_url.substr(0, ext_end);
+  auto ext_beg = url.find_last_of('.');
+  auto ext_len = (ext_beg != url.npos) ? (url.size() - ext_beg) : 0;
+
+  auto filename = (ext_len > 0) ?
+                    "test_file" + url.substr(ext_beg, ext_len) :
+                    "test_file";
+
+
+  cpr::Response r = cpr::Get(cpr::Url{full_url}, cpr::VerifySsl(verify_ssl));
+  SaveToFile(r.text, filename);
+
+  return filename;
 }
 
 /**
@@ -225,8 +260,8 @@ static std::string HandleRequest(std::string message)
  *
  * @constructor
  */
-KeleqramBot::KeleqramBot()
-: m_bot(TOKEN),
+KeleqramBot::KeleqramBot(const std::string& token)
+: m_bot((token.empty()) ? TOKEN : token),
   m_api(m_bot.getApi()),
   m_poll(m_bot)
 {
@@ -241,7 +276,7 @@ void KeleqramBot::Poll()
 {
   m_poll.start();
   if (ActionTimer())
-    SendMessage(CHAT_IDs[chat_idx++], GetRequest(ZENQUOTE_URL_INDEX));
+    SendMessage(GetRequest(ZENQUOTE_URL_INDEX), CHAT_IDs[chat_idx++]);
 }
 
 /**
@@ -251,7 +286,7 @@ void KeleqramBot::SetListeners()
 {
   m_bot.getEvents().onCommand   (START_COMMAND, [this](MessagePtr message)
   {
-    SendMessage(message->chat->id, "Hi!");
+    SendMessage("Hi!", message->chat->id);
   });
   m_bot.getEvents().onAnyMessage([this](MessagePtr message)
   {
@@ -277,10 +312,27 @@ bool KeleqramBot::IsReply(const int32_t& id) const
  * @param [in] {int64_t}
  * @param [in] {std::string}
  */
-void KeleqramBot:: SendMessage(const int64_t& id, const std::string& text)
+void KeleqramBot::SendMessage(const std::string& text, const int64_t& id)
 {
   if (!text.empty())
     tx_msg_ids.emplace_back(m_api.sendMessage(id, text)->messageId);
+}
+
+/**
+ * SendPhoto
+ *
+ * @param [in] {unsigned char*}
+ * @param [in] {size_t}
+ * @param [in] {int64_t}
+ */
+void KeleqramBot::SendPhoto(const std::string& url, const int64_t& id)
+{
+  const auto path = FetchTemporaryFile(url);
+  const auto mime = GetMimeType(path);
+  if (!mime.empty())
+    m_api.sendPhoto(id, TgBot::InputFile::fromFile(path, mime));
+  else
+    log("Couldn't detect mime type");
 }
 
 /**
@@ -298,9 +350,9 @@ void KeleqramBot::HandleMessage(MessagePtr message)
     (void)(0);
   else
   if (reply_message && IsReply(reply_message->messageId))
-    SendMessage(id, "I hear you, bitch");
+    SendMessage("I hear you, bitch", id);
   else
-    SendMessage(id, HandleRequest(message->text));
+    SendMessage(HandleRequest(message->text), id);
 }
 
 
