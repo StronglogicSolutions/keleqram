@@ -8,6 +8,7 @@ static TimePoint         initial_time = std::chrono::system_clock::now();
 static const char*       START_COMMAND  {"start"};
 static const char*       TOKEN          {""};
 static const char*       DEFAULT_REPLY  {"Defeat Global Fascism"};
+static const char*       DEFAULT_RETORT {"I hear you, bitch"};
 static const uint32_t    THIRTY_MINS    {1800};
 static const uint32_t    KANYE_URL_INDEX   {0};
 static const uint32_t    ZENQUOTE_URL_INDEX{1};
@@ -314,8 +315,10 @@ bool KeleqramBot::IsReply(const int32_t& id) const
  */
 void KeleqramBot::SendMessage(const std::string& text, const int64_t& id)
 {
-  if (!text.empty())
-    tx_msg_ids.emplace_back(m_api.sendMessage(id, text)->messageId);
+  if (text.empty()) return;
+
+  tx_msg_ids.emplace_back(m_api.sendMessage(id, text)->messageId);
+  log("Sent ", text.c_str(), " to " , std::to_string(id).c_str());
 }
 
 /**
@@ -327,12 +330,15 @@ void KeleqramBot::SendMessage(const std::string& text, const int64_t& id)
  */
 void KeleqramBot::SendPhoto(const std::string& url, const int64_t& id)
 {
+  if (url.empty()) return;
+
   const auto path = FetchTemporaryFile(url);
   const auto mime = GetMimeType(path);
-  if (!mime.empty())
-    m_api.sendPhoto(id, TgBot::InputFile::fromFile(path, mime));
-  else
-    log("Couldn't detect mime type");
+  if (mime.empty())
+    return (void)(log("Couldn't detect mime type"));
+
+  m_api.sendPhoto(id, TgBot::InputFile::fromFile(path, mime));
+  log("Uploaded ", url.c_str(), " to " , std::to_string(id).c_str());
 }
 
 /**
@@ -346,11 +352,8 @@ void KeleqramBot::HandleMessage(MessagePtr message)
   const int64_t&   id            = message->chat->id;
   LogMessage(message);
 
-  if (StringTools::startsWith(message->text, "/start"))
-    (void)(0);
-  else
   if (reply_message && IsReply(reply_message->messageId))
-    SendMessage("I hear you, bitch", id);
+    SendMessage(DEFAULT_RETORT, id);
   else
     SendMessage(HandleRequest(message->text), id);
 }
