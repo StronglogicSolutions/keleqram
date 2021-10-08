@@ -6,7 +6,7 @@
 namespace keleqram {
 static TimePoint         initial_time = std::chrono::system_clock::now();
 static const char*       START_COMMAND  {"start"};
-static const char*       TOKEN          {""};
+static const char*       TOKEN          {"2022095039:AAGVKF0fpYkCby7KHJ2dLhEcP_lQziTx7_M"};
 static const char*       DEFAULT_REPLY  {"Defeat Global Fascism"};
 static const char*       DEFAULT_RETORT {"I hear you, bitch"};
 static const uint32_t    THIRTY_MINS    {1800};
@@ -27,7 +27,9 @@ static const char*       URLS[] {
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD"
 };
 static const int64_t     CHAT_IDs[] {
-
+  -229652245,
+  -261325234,
+  -1001499149725
 };
 
 const int64_t DEFAULT_CHAT_ID = *(CHAT_IDs);
@@ -84,7 +86,7 @@ static void Hello(TgBot::Bot& bot)
 
 static std::string GetMimeType(const std::string& path)
 {
-  const auto it = path.find_last_of('/');
+  const auto it = path.find_last_of('.');
   if (it != std::string::npos)
   {
     const auto extension = ToLower(path.substr(it + 1));
@@ -102,6 +104,20 @@ static std::string GetMimeType(const std::string& path)
   return "";
 }
 
+static std::string ExtractTempFilename(const std::string& full_url)
+{
+  static const char* TEMP_FILE{"temp_file"};
+  auto ext_end = full_url.find_first_of('?');
+  ext_end      = ext_end == std::string::npos ? full_url.size() : ext_end;
+  auto url     = full_url.substr(0, ext_end);
+  auto ext_beg = url.find_last_of('.');
+  auto ext_len = (ext_beg != url.npos) ? (url.size() - ext_beg) : 0;
+
+  auto filename = (ext_len > 0) ?
+                    TEMP_FILE + url.substr(ext_beg, ext_len) :
+                    TEMP_FILE;
+}
+
 static std::string FetchTemporaryFile(const std::string& full_url, const bool verify_ssl = true)
 {
   auto ext_end = full_url.find_first_of('?');
@@ -110,9 +126,7 @@ static std::string FetchTemporaryFile(const std::string& full_url, const bool ve
   auto ext_beg = url.find_last_of('.');
   auto ext_len = (ext_beg != url.npos) ? (url.size() - ext_beg) : 0;
 
-  auto filename = (ext_len > 0) ?
-                    "test_file" + url.substr(ext_beg, ext_len) :
-                    "test_file";
+  auto filename = ExtractTempFilename(full_url);
 
 
   cpr::Response r = cpr::Get(cpr::Url{full_url}, cpr::VerifySsl(verify_ssl));
