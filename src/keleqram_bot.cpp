@@ -84,7 +84,16 @@ static void Hello(TgBot::Bot& bot)
   printf("Bot username: %s\n", bot.getApi().getMe()->username.c_str());
 }
 
-static std::string GetMimeType(const std::string& path)
+struct MimeType
+{
+  std::string name;
+  bool        video;
+
+  bool IsVideo() const { return video;    }
+  bool IsPhoto() const { return !(video); }
+};
+
+static MimeType GetMimeType(const std::string& path)
 {
   const auto it = path.find_last_of('.');
   if (it != std::string::npos)
@@ -92,44 +101,49 @@ static std::string GetMimeType(const std::string& path)
     const auto extension = ToLower(path.substr(it + 1));
 
     if (extension == "jpg" || extension == "jpeg")
-      return "image/jpeg";
+      return MimeType{"image/jpeg", false};
     else
     if (extension == "png")
-      return "image/png";
+      return MimeType{"image/png", false};
     else
     if (extension == "gif")
-      return "image/gif";
+      return MimeType{"image/gif", false};
+    else
+    if (extension == "mp4")
+      return MimeType{"video/mp4", true};
+    else
+    if (extension == "mkv")
+      return MimeType{"video/mkv", true};
+    else
+    if (extension == "webm")
+      return MimeType{"video/webm", true};
+    else
+    if (extension == "mpeg")
+      return MimeType{"video/mpeg", true};
+    else
+    if (extension == "mov")
+      return MimeType{"video/quicktime", true};
   }
-
-  return "";
+  return MimeType{"unknown", false};
 }
 
 static std::string ExtractTempFilename(const std::string& full_url)
 {
   static const char* TEMP_FILE{"temp_file"};
-  auto ext_end = full_url.find_first_of('?');
-  ext_end      = ext_end == std::string::npos ? full_url.size() : ext_end;
-  auto url     = full_url.substr(0, ext_end);
-  auto ext_beg = url.find_last_of('.');
-  auto ext_len = (ext_beg != url.npos) ? (url.size() - ext_beg) : 0;
 
-  auto filename = (ext_len > 0) ?
-                    TEMP_FILE + url.substr(ext_beg, ext_len) :
-                    TEMP_FILE;
+        auto ext_end = full_url.find_first_of('?');
+        ext_end      = ext_end == std::string::npos ? full_url.size() : ext_end;
+  const auto url     = full_url.substr(0, ext_end);
+  const auto ext_beg = url.find_last_of('.');
+  const auto ext_len = (ext_beg != url.npos) ? (url.size() - ext_beg) : 0;
+  const auto filename = (ext_len > 0) ? TEMP_FILE + url.substr(ext_beg, ext_len) : TEMP_FILE;
+  return filename;
 }
 
 static std::string FetchTemporaryFile(const std::string& full_url, const bool verify_ssl = true)
 {
-  auto ext_end = full_url.find_first_of('?');
-  ext_end      = ext_end == std::string::npos ? full_url.size() : ext_end;
-  auto url     = full_url.substr(0, ext_end);
-  auto ext_beg = url.find_last_of('.');
-  auto ext_len = (ext_beg != url.npos) ? (url.size() - ext_beg) : 0;
-
-  auto filename = ExtractTempFilename(full_url);
-
-
-  cpr::Response r = cpr::Get(cpr::Url{full_url}, cpr::VerifySsl(verify_ssl));
+  const auto filename   = ExtractTempFilename(full_url);
+  const cpr::Response r = cpr::Get(cpr::Url{full_url}, cpr::VerifySsl(verify_ssl));
   SaveToFile(r.text, filename);
 
   return filename;
@@ -259,7 +273,7 @@ static std::string HandleRequest(std::string message)
     return GetRequest(ETH_URL_INDEX);
   if (ToLower(message) == "/insult")
     return GetRequest(INSULT_URL_INDEX);
-  if (ToLower(message).find("/person") != std::string::npos)
+  if (ToLower(message).find("/wiki") != std::string::npos)
     return GetWiki(message);
   return "";
 }
@@ -342,16 +356,19 @@ void KeleqramBot::SendMessage(const std::string& text, const int64_t& id)
  * @param [in] {size_t}
  * @param [in] {int64_t}
  */
-void KeleqramBot::SendPhoto(const std::string& url, const int64_t& id)
+void KeleqramBot::SendMedia(const std::string& url, const int64_t& id)
 {
   if (url.empty()) return;
 
   const auto path = FetchTemporaryFile(url);
   const auto mime = GetMimeType(path);
-  if (mime.empty())
+  if (mime.name.empty())
     return (void)(log("Couldn't detect mime type"));
 
-  m_api.sendPhoto(id, TgBot::InputFile::fromFile(path, mime));
+  if (mime.IsPhoto())
+    m_api.sendPhoto(id, TgBot::InputFile::fromFile(path, mime.name));
+  else
+    m_api.sendVideo(id, TgBot::InputFile::fromFile(path, mime.name));
   log("Uploaded ", url.c_str(), " to " , std::to_string(id).c_str());
 }
 
