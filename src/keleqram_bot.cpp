@@ -6,7 +6,7 @@
 namespace keleqram {
 static TimePoint         initial_time = std::chrono::system_clock::now();
 static const char*       START_COMMAND  {"start"};
-static const char*       TOKEN          {""};
+static const char*       TOKEN          {"2022095039:AAGVKF0fpYkCby7KHJ2dLhEcP_lQziTx7_M"};
 static const char*       DEFAULT_REPLY  {"Defeat Global Fascism"};
 static const char*       DEFAULT_RETORT {"I hear you, bitch"};
 static const uint32_t    THIRTY_MINS    {1800};
@@ -27,7 +27,9 @@ static const char*       URLS[] {
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD"
 };
 static const int64_t     CHAT_IDs[] {
-
+  -229652245,
+  -261325234,
+  -1001499149725
 };
 
 const int64_t DEFAULT_CHAT_ID = *(CHAT_IDs);
@@ -235,7 +237,7 @@ static std::string GetWiki(std::string message)
   };
 
     std::string text{};
-    const std::string query = StringTools::urlEncode(message.substr(8));
+    const std::string query = StringTools::urlEncode(message.substr(6));
     RequestResponse   response{cpr::Get(cpr::Url{URLS[WIKI_URL_INDEX]} + query, cpr::VerifySsl{false})};
     if (!response.error)
     {
