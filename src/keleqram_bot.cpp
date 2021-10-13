@@ -150,7 +150,7 @@ static std::string FetchTemporaryFile(const std::string& full_url, const bool ve
 /**
  * GetRequest
  */
-std::string GetRequest(uint32_t url_index)
+static std::string GetRequest(uint32_t url_index)
 {
   using namespace keleqram;
   std::string text{};
@@ -248,6 +248,22 @@ static std::string GetWiki(std::string message)
     return text;
 }
 
+static std::string Greeting(MessagePtr& message)
+{
+  static const char* BotInfo{
+    "Available commands:\n```"
+    "/kanye        - Timeless advice and inspiration"
+    "/quote        - Quotes from persons that are not Kanye West"
+    "/btc          - Latest BTC price"
+    "/link         - Latest LINK price"
+    "/eth          - Latest Ethereum price"
+    "/insult       - You deserve what you get"
+    "/wiki <query> - Search Wikipedia```"};
+  const auto& name = message->newChatMember->firstName.empty() ? message->from->firstName : message->newChatMember->firstName;
+  const auto& room = message->chat->title;
+  return "Welcome, " + name + " to " + room +"\n\n" + BotInfo;
+};
+
 /**
  * HandleRequest
  * @static
@@ -319,6 +335,8 @@ void KeleqramBot::SetListeners()
   {
     HandleMessage(message);
   });
+
+
 }
 
 /**
@@ -377,6 +395,8 @@ void KeleqramBot::SendMedia(const std::string& url, const int64_t& id)
  */
 void KeleqramBot::HandleMessage(MessagePtr message)
 {
+  const auto IsEvent = [](const MessagePtr& message) -> bool { return message->text.empty(); };
+
   const MessagePtr reply_message = message->replyToMessage;
   const int64_t&   id            = message->chat->id;
   LogMessage(message);
@@ -384,9 +404,25 @@ void KeleqramBot::HandleMessage(MessagePtr message)
   if (reply_message && IsReply(reply_message->messageId))
     SendMessage(DEFAULT_RETORT, id);
   else
+  if (IsEvent(message))
+    HandleEvent(message);
+  else
     SendMessage(HandleRequest(message->text), id);
 }
 
+/**
+ * HandleEvent
+ *
+ * @param [in] {MessagePtr}
+ */
+void KeleqramBot::HandleEvent(MessagePtr message)
+{
+  if (message->newChatMember->id)
+    SendMessage(Greeting(message), message->chat->id);
+  else
+  if (message->leftChatMember->id)
+    SendMessage("Good riddance", message->chat->id);
+}
 
 /**
  * RunMain
