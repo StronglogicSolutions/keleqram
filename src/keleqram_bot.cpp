@@ -9,6 +9,7 @@ static const char*       START_COMMAND  {"start"};
 static const char*       TOKEN          {""};
 static const char*       DEFAULT_REPLY  {"Defeat Global Fascism"};
 static const char*       DEFAULT_RETORT {"I hear you, bitch"};
+static const char*       MARKDOWN_MODE  {"Markdown"};
 static const uint32_t    THIRTY_MINS    {1800};
 static const uint32_t    KANYE_URL_INDEX   {0};
 static const uint32_t    ZENQUOTE_URL_INDEX{1};
@@ -251,17 +252,17 @@ static std::string GetWiki(std::string message)
 static std::string Greeting(MessagePtr& message)
 {
   static const char* BotInfo{
-    "Available commands:\n```"
-    "/kanye        - Timeless advice and inspiration"
-    "/quote        - Quotes from persons that are not Kanye West"
-    "/btc          - Latest BTC price"
-    "/link         - Latest LINK price"
-    "/eth          - Latest Ethereum price"
-    "/insult       - You deserve what you get"
+    "**Available commands:**\n```\n"
+    "/kanye        - Timeless advice and inspiration\n"
+    "/quote        - Quotes from persons that are not Kanye West\n"
+    "/btc          - Latest BTC price\n"
+    "/link         - Latest LINK price\n"
+    "/eth          - Latest Ethereum price\n"
+    "/insult       - You deserve what you get\n"
     "/wiki <query> - Search Wikipedia```"};
   const auto& name = message->newChatMember->firstName.empty() ? message->from->firstName : message->newChatMember->firstName;
   const auto& room = message->chat->title;
-  return "Welcome, " + name + " to " + room +"\n\n" + BotInfo;
+  return "Welcome to " + room + ", " + name + "\n\n" + BotInfo;
 };
 
 /**
@@ -357,11 +358,15 @@ bool KeleqramBot::IsReply(const int32_t& id) const
  * @param [in] {int64_t}
  * @param [in] {std::string}
  */
-void KeleqramBot::SendMessage(const std::string& text, const int64_t& id)
+void KeleqramBot::SendMessage(const std::string& text, const int64_t& id, const std::string& parse_mode)
 {
+  using ReplyPtr = TgBot::GenericReply::Ptr;
+  static const bool     PreviewsActive{false};
+  static const int32_t  NoReplyID{0};
+  static const ReplyPtr NoInterface{nullptr};
   if (text.empty()) return;
 
-  tx_msg_ids.emplace_back(m_api.sendMessage(id, text)->messageId);
+  tx_msg_ids.emplace_back(m_api.sendMessage(id, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
   log("Sent ", text.c_str(), " to " , std::to_string(id).c_str());
 }
 
@@ -417,10 +422,10 @@ void KeleqramBot::HandleMessage(MessagePtr message)
  */
 void KeleqramBot::HandleEvent(MessagePtr message)
 {
-  if (message->newChatMember->id)
-    SendMessage(Greeting(message), message->chat->id);
+  if (message->newChatMember)
+    SendMessage(Greeting(message), message->chat->id, MARKDOWN_MODE);
   else
-  if (message->leftChatMember->id)
+  if (message->leftChatMember)
     SendMessage("Good riddance", message->chat->id);
 }
 

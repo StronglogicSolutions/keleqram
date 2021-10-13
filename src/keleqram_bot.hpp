@@ -31,7 +31,7 @@ void SetListeners();
 void Poll();
 void HandleMessage(MessagePtr message);
 void HandleEvent(MessagePtr message);
-void SendMessage(const std::string& text, const int64_t& id = DEFAULT_CHAT_ID);
+void SendMessage(const std::string& text, const int64_t& id = DEFAULT_CHAT_ID, const std::string& parse_mode = "");
 void SendMedia  (const std::string& url,  const int64_t& id = DEFAULT_CHAT_ID);
 
 private:
