@@ -8,6 +8,8 @@ static TimePoint         initial_time = std::chrono::system_clock::now();
 static const char*       START_COMMAND  {"start"};
 static const char*       TOKEN          {""};
 static const char*       DEFAULT_REPLY  {"Defeat Global Fascism"};
+static const char*       DEFAULT_RETORT {"I hear you, bitch"};
+static const char*       MARKDOWN_MODE  {"Markdown"};
 static const uint32_t    THIRTY_MINS    {1800};
 static const uint32_t    KANYE_URL_INDEX   {0};
 static const uint32_t    ZENQUOTE_URL_INDEX{1};
@@ -29,6 +31,7 @@ static const int64_t     CHAT_IDs[] {
 
 };
 
+const int64_t DEFAULT_CHAT_ID = *(CHAT_IDs);
 /**
  * Global var
  */
@@ -39,12 +42,6 @@ static kint8_t chat_idx{};
   │░░░░░░░░░░░░░░░░░░░░░░░░░░ Helpers ░░░░░░░░░░░░░░░░░░░░░░░│
   └──────────────────────────────────────────────────────────┘
 */
-template<typename... Args>
-static void log(Args... args) {
-  for (const auto& s : {args...})
-    std::cout << s;
-  std::cout << std::endl;
-}
 
 static void LogMessage(const MessagePtr& message)
 {
@@ -74,10 +71,11 @@ static std::string FloatToDecimalString(float n)
   return ss.str();
 }
 
-static std::string ToLower(std::string& s)
+static std::string ToLower(const std::string& s)
 {
-  std::transform(s.begin(), s.end(), s.begin(), [](char c) { return tolower(c); });
-  return s;
+  std::string t{s};
+  std::transform(t.begin(), t.end(), t.begin(), [](char c) { return tolower(c); });
+  return t;
 }
 
 static void Hello(TgBot::Bot& bot)
@@ -85,10 +83,75 @@ static void Hello(TgBot::Bot& bot)
   printf("Bot username: %s\n", bot.getApi().getMe()->username.c_str());
 }
 
+struct MimeType
+{
+  std::string name;
+  bool        video;
+
+  bool IsVideo() const { return video;    }
+  bool IsPhoto() const { return !(video); }
+};
+
+static MimeType GetMimeType(const std::string& path)
+{
+  const auto it = path.find_last_of('.');
+  if (it != std::string::npos)
+  {
+    const auto extension = ToLower(path.substr(it + 1));
+
+    if (extension == "jpg" || extension == "jpeg")
+      return MimeType{"image/jpeg", false};
+    else
+    if (extension == "png")
+      return MimeType{"image/png", false};
+    else
+    if (extension == "gif")
+      return MimeType{"image/gif", false};
+    else
+    if (extension == "mp4")
+      return MimeType{"video/mp4", true};
+    else
+    if (extension == "mkv")
+      return MimeType{"video/mkv", true};
+    else
+    if (extension == "webm")
+      return MimeType{"video/webm", true};
+    else
+    if (extension == "mpeg")
+      return MimeType{"video/mpeg", true};
+    else
+    if (extension == "mov")
+      return MimeType{"video/quicktime", true};
+  }
+  return MimeType{"unknown", false};
+}
+
+static std::string ExtractTempFilename(const std::string& full_url)
+{
+  static const char* TEMP_FILE{"temp_file"};
+
+        auto ext_end = full_url.find_first_of('?');
+        ext_end      = ext_end == std::string::npos ? full_url.size() : ext_end;
+  const auto url     = full_url.substr(0, ext_end);
+  const auto ext_beg = url.find_last_of('.');
+  const auto ext_len = (ext_beg != url.npos) ? (url.size() - ext_beg) : 0;
+  const auto filename = (ext_len > 0) ? TEMP_FILE + url.substr(ext_beg, ext_len) : TEMP_FILE;
+  return filename;
+}
+
+static std::string FetchTemporaryFile(const std::string& full_url, const bool verify_ssl = true)
+{
+  const auto filename   = ExtractTempFilename(full_url);
+  const cpr::Response r = cpr::Get(cpr::Url{full_url}, cpr::VerifySsl(verify_ssl));
+  SaveToFile(r.text, filename);
+
+  return filename;
+}
+
 /**
  * GetRequest
  */
-std::string GetRequest(uint32_t url_index)
+static std::string GetRequest(uint32_t url_index)
 {
   using namespace keleqram;
   std::string text{};
@@ -173,7 +236,7 @@ static std::string GetWiki(std::string message)
   };
 
     std::string text{};
-    const std::string query = StringTools::urlEncode(message.substr(8));
+    const std::string query = StringTools::urlEncode(message.substr(6));
     RequestResponse   response{cpr::Get(cpr::Url{URLS[WIKI_URL_INDEX]} + query, cpr::VerifySsl{false})};
     if (!response.error)
     {
@@ -185,6 +248,22 @@ static std::string GetWiki(std::string message)
     }
     return text;
 }
+
+static std::string Greeting(MessagePtr& message)
+{
+  static const char* BotInfo{
+    "**Available commands:**\n```\n"
+    "/kanye        - Timeless advice and inspiration\n"
+    "/quote        - Quotes from persons that are not Kanye West\n"
+    "/btc          - Latest BTC price\n"
+    "/link         - Latest LINK price\n"
+    "/eth          - Latest Ethereum price\n"
+    "/insult       - You deserve what you get\n"
+    "/wiki <query> - Search Wikipedia```"};
+  const auto& name = message->newChatMember->firstName.empty() ? message->from->firstName : message->newChatMember->firstName;
+  const auto& room = message->chat->title;
+  return "Welcome to " + room + ", " + name + "\n\n" + BotInfo;
+};
 
 /**
  * HandleRequest
@@ -209,7 +288,7 @@ static std::string HandleRequest(std::string message)
     return GetRequest(ETH_URL_INDEX);
   if (ToLower(message) == "/insult")
     return GetRequest(INSULT_URL_INDEX);
-  if (ToLower(message).find("/person") != std::string::npos)
+  if (ToLower(message).find("/wiki") != std::string::npos)
     return GetWiki(message);
   return "";
 }
@@ -225,8 +304,8 @@ static std::string HandleRequest(std::string message)
  *
  * @constructor
  */
-KeleqramBot::KeleqramBot()
-: m_bot(TOKEN),
+KeleqramBot::KeleqramBot(const std::string& token)
+: m_bot((token.empty()) ? TOKEN : token),
   m_api(m_bot.getApi()),
   m_poll(m_bot)
 {
@@ -241,7 +320,7 @@ void KeleqramBot::Poll()
 {
   m_poll.start();
   if (ActionTimer())
-    SendMessage(CHAT_IDs[chat_idx++], GetRequest(ZENQUOTE_URL_INDEX));
+    SendMessage(GetRequest(ZENQUOTE_URL_INDEX), CHAT_IDs[chat_idx++]);
 }
 
 /**
@@ -251,12 +330,14 @@ void KeleqramBot::SetListeners()
 {
   m_bot.getEvents().onCommand   (START_COMMAND, [this](MessagePtr message)
   {
-    SendMessage(message->chat->id, "Hi!");
+    SendMessage("Hi!", message->chat->id);
   });
   m_bot.getEvents().onAnyMessage([this](MessagePtr message)
   {
     HandleMessage(message);
   });
+
+
 }
 
 /**
@@ -277,10 +358,39 @@ bool KeleqramBot::IsReply(const int32_t& id) const
  * @param [in] {int64_t}
  * @param [in] {std::string}
  */
-void KeleqramBot:: SendMessage(const int64_t& id, const std::string& text)
+void KeleqramBot::SendMessage(const std::string& text, const int64_t& id, const std::string& parse_mode)
 {
-  if (!text.empty())
-    tx_msg_ids.emplace_back(m_api.sendMessage(id, text)->messageId);
+  using ReplyPtr = TgBot::GenericReply::Ptr;
+  static const bool     PreviewsActive{false};
+  static const int32_t  NoReplyID{0};
+  static const ReplyPtr NoInterface{nullptr};
+  if (text.empty()) return;
+
+  tx_msg_ids.emplace_back(m_api.sendMessage(id, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
+  log("Sent ", text.c_str(), " to " , std::to_string(id).c_str());
+}
+
+/**
+ * SendPhoto
+ *
+ * @param [in] {unsigned char*}
+ * @param [in] {size_t}
+ * @param [in] {int64_t}
+ */
+void KeleqramBot::SendMedia(const std::string& url, const int64_t& id)
+{
+  if (url.empty()) return;
+
+  const auto path = FetchTemporaryFile(url);
+  const auto mime = GetMimeType(path);
+  if (mime.name.empty())
+    return (void)(log("Couldn't detect mime type"));
+
+  if (mime.IsPhoto())
+    m_api.sendPhoto(id, TgBot::InputFile::fromFile(path, mime.name));
+  else
+    m_api.sendVideo(id, TgBot::InputFile::fromFile(path, mime.name));
+  log("Uploaded ", url.c_str(), " to " , std::to_string(id).c_str());
 }
 
 /**
@@ -290,19 +400,34 @@ void KeleqramBot:: SendMessage(const int64_t& id, const std::string& text)
  */
 void KeleqramBot::HandleMessage(MessagePtr message)
 {
+  const auto IsEvent = [](const MessagePtr& message) -> bool { return message->text.empty(); };
+
   const MessagePtr reply_message = message->replyToMessage;
   const int64_t&   id            = message->chat->id;
   LogMessage(message);
 
-  if (StringTools::startsWith(message->text, "/start"))
-    (void)(0);
-  else
   if (reply_message && IsReply(reply_message->messageId))
-    SendMessage(id, "I hear you, bitch");
+    SendMessage(DEFAULT_RETORT, id);
   else
-    SendMessage(id, HandleRequest(message->text));
+  if (IsEvent(message))
+    HandleEvent(message);
+  else
+    SendMessage(HandleRequest(message->text), id);
 }
 
+/**
+ * HandleEvent
+ *
+ * @param [in] {MessagePtr}
+ */
+void KeleqramBot::HandleEvent(MessagePtr message)
+{
+  if (message->newChatMember)
+    SendMessage(Greeting(message), message->chat->id, MARKDOWN_MODE);
+  else
+  if (message->leftChatMember)
+    SendMessage("Good riddance", message->chat->id);
+}
 
 /**
  * RunMain
