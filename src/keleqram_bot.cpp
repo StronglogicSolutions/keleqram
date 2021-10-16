@@ -358,15 +358,26 @@ bool KeleqramBot::IsReply(const int32_t& id) const
  * @param [in] {int64_t}
  * @param [in] {std::string}
  */
-void KeleqramBot::SendMessage(const std::string& text, const int64_t& id, const std::string& parse_mode)
+template<typename T>
+void KeleqramBot::SendMessage(const std::string& text, const T& id, const std::string& parse_mode)
 {
   using ReplyPtr = TgBot::GenericReply::Ptr;
   static const bool     PreviewsActive{false};
   static const int32_t  NoReplyID{0};
   static const ReplyPtr NoInterface{nullptr};
+  static       int64_t  dest{};
+
+  if constexpr (std::is_integral<T>::value)
+    dest = id;
+  else
+  if constexpr (std::is_same_v<T, std::string>)
+    dest = (id.empty()) ? DEFAULT_CHAT_ID : std::stoll(id);
+  else
+    dest = DEFAULT_CHAT_ID;
+
   if (text.empty()) return;
 
-  tx_msg_ids.emplace_back(m_api.sendMessage(id, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
+  tx_msg_ids.emplace_back(m_api.sendMessage(dest, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
   log("Sent ", text.c_str(), " to " , std::to_string(id).c_str());
 }
 
