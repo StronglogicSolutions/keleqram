@@ -31,8 +31,10 @@ void SetListeners();
 void Poll();
 void HandleMessage(MessagePtr message);
 void HandleEvent(MessagePtr message);
-void SendMessage(const std::string& text, const int64_t& id = DEFAULT_CHAT_ID, const std::string& parse_mode = "");
-void SendMedia  (const std::string& url,  const int64_t& id = DEFAULT_CHAT_ID);
+template<typename T>
+void SendMessage(const std::string& text, const T& id, const std::string& parse_mode = "");
+template<typename T>
+void SendMedia  (const std::string& url,  const T& id);
 
 private:
 bool IsReply(const int32_t& id) const;
