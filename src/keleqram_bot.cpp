@@ -379,7 +379,7 @@ void KeleqramBot::SendMessage(const std::string& text, const T& id, const std::s
   static const bool     PreviewsActive{false};
   static const int32_t  NoReplyID     {0};
   static const ReplyPtr NoInterface   {nullptr};
-  static const int64_t  dest    =     ValidateID(id);
+         const int64_t  dest    =     ValidateID(id);
 
   tx_msg_ids.emplace_back(m_api.sendMessage(dest, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
   log("Sent ", text.c_str(), " to " , std::to_string(dest).c_str());
@@ -396,10 +396,9 @@ template<typename T>
 void KeleqramBot::SendMedia(const std::string& url,  const T& id)
 {
   if (url.empty()) return;
-  static const int64_t dest = ValidateID(id);
-
-  const auto path = FetchTemporaryFile(url);
-  const auto mime = GetMimeType(path);
+  const int64_t dest = ValidateID(id);
+  const auto    path = FetchTemporaryFile(url);
+  const auto    mime = GetMimeType(path);
   if (mime.name.empty())
     return (void)(log("Couldn't detect mime type"));
 
@@ -453,10 +452,10 @@ void KeleqramBot::HandleEvent(MessagePtr message)
 */
 
 template void KeleqramBot::SendMessage(const std::string& text,
-                                       const std::string& id         = "",
+                                       const std::string& id,
                                        const std::string& parse_mode = "");
 template void KeleqramBot::SendMessage(const std::string& text,
-                                       const int64_t&     id         = DEFAULT_CHAT_ID,
+                                       const int64_t&     id,
                                        const std::string& parse_mode = "");
 template void KeleqramBot::SendMedia  (const std::string& url,  const std::string& id);
 template void KeleqramBot::SendMedia  (const std::string& url,  const int64_t&     id);

@@ -31,10 +31,10 @@ void SetListeners();
 void Poll();
 void HandleMessage(MessagePtr message);
 void HandleEvent(MessagePtr message);
-template<typename T = int64_t>
+template<typename T>
 void SendMessage(const std::string& text, const T& id, const std::string& parse_mode = "");
 template<typename T>
-  void SendMedia  (const std::string& url,  const T& id);
+void SendMedia  (const std::string& url,  const T& id);
 
 private:
 bool IsReply(const int32_t& id) const;
