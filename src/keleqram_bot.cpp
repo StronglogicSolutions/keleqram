@@ -336,8 +336,6 @@ void KeleqramBot::SetListeners()
   {
     HandleMessage(message);
   });
-
-
 }
 
 /**
@@ -352,6 +350,19 @@ bool KeleqramBot::IsReply(const int32_t& id) const
   return false;
 }
 
+template <typename T = int64_t>
+static const int64_t ValidateID(const T& id)
+{
+  static const size_t MIN_SIZE{5};
+  if constexpr (std::is_integral<T>::value)
+    return id;
+  else
+  if constexpr (std::is_same_v<T, std::string>)
+    return (id.size() < MIN_SIZE) ? DEFAULT_CHAT_ID : std::stoll(id);
+  else
+    return DEFAULT_CHAT_ID;
+}
+
 /**
  * SendMessage
  *
@@ -361,36 +372,31 @@ bool KeleqramBot::IsReply(const int32_t& id) const
 template<typename T>
 void KeleqramBot::SendMessage(const std::string& text, const T& id, const std::string& parse_mode)
 {
-  using ReplyPtr = TgBot::GenericReply::Ptr;
-  static const bool     PreviewsActive{false};
-  static const int32_t  NoReplyID{0};
-  static const ReplyPtr NoInterface{nullptr};
-  static       int64_t  dest{};
-
-  if constexpr (std::is_integral<T>::value)
-    dest = id;
-  else
-  if constexpr (std::is_same_v<T, std::string>)
-    dest = (id.empty()) ? DEFAULT_CHAT_ID : std::stoll(id);
-  else
-    dest = DEFAULT_CHAT_ID;
-
   if (text.empty()) return;
 
+  using ReplyPtr = TgBot::GenericReply::Ptr;
+
+  static const bool     PreviewsActive{false};
+  static const int32_t  NoReplyID     {0};
+  static const ReplyPtr NoInterface   {nullptr};
+  static const int64_t  dest    =     ValidateID(id);
+
   tx_msg_ids.emplace_back(m_api.sendMessage(dest, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
-  log("Sent ", text.c_str(), " to " , std::to_string(id).c_str());
+  log("Sent ", text.c_str(), " to " , std::to_string(dest).c_str());
 }
 
 /**
- * SendPhoto
+ * SendMedia
  *
  * @param [in] {unsigned char*}
  * @param [in] {size_t}
  * @param [in] {int64_t}
  */
-void KeleqramBot::SendMedia(const std::string& url, const int64_t& id)
+template<typename T>
+void KeleqramBot::SendMedia(const std::string& url,  const T& id)
 {
   if (url.empty()) return;
+  static const int64_t dest = ValidateID(id);
 
   const auto path = FetchTemporaryFile(url);
   const auto mime = GetMimeType(path);
@@ -398,10 +404,10 @@ void KeleqramBot::SendMedia(const std::string& url, const int64_t& id)
     return (void)(log("Couldn't detect mime type"));
 
   if (mime.IsPhoto())
-    m_api.sendPhoto(id, TgBot::InputFile::fromFile(path, mime.name));
+    m_api.sendPhoto(dest, TgBot::InputFile::fromFile(path, mime.name));
   else
-    m_api.sendVideo(id, TgBot::InputFile::fromFile(path, mime.name));
-  log("Uploaded ", url.c_str(), " to " , std::to_string(id).c_str());
+    m_api.sendVideo(dest, TgBot::InputFile::fromFile(path, mime.name));
+  log("Uploaded ", url.c_str(), " to " , std::to_string(dest).c_str());
 }
 
 /**
@@ -439,6 +445,22 @@ void KeleqramBot::HandleEvent(MessagePtr message)
   if (message->leftChatMember)
     SendMessage("Good riddance", message->chat->id);
 }
+
+/**
+  ┌──────────────────────────────────────────────────────────┐
+  │░░░░░░░░░░░░░░░░░░░░░░ Specializations ░░░░░░░░░░░░░░░░░░░░│
+  └──────────────────────────────────────────────────────────┘
+*/
+
+template void KeleqramBot::SendMessage(const std::string& text,
+                                       const std::string& id         = "",
+                                       const std::string& parse_mode = "");
+template void KeleqramBot::SendMessage(const std::string& text,
+                                       const int64_t&     id         = DEFAULT_CHAT_ID,
+                                       const std::string& parse_mode = "");
+template void KeleqramBot::SendMedia  (const std::string& url,  const std::string& id);
+template void KeleqramBot::SendMedia  (const std::string& url,  const int64_t&     id);
+
 
 /**
  * RunMain
