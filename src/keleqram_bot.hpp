@@ -52,7 +52,7 @@ std::vector<int32_t> tx_msg_ids;
 class kint8_t
 {
 public:
-kint8_t(uint8_t max_value = 2)
+kint8_t(uint8_t max_value = 4)
 : m_value(0),
   m_max(max_value)
 {}

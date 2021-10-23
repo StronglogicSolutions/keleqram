@@ -6,11 +6,12 @@
 namespace keleqram {
 static TimePoint         initial_time = std::chrono::system_clock::now();
 static const char*       START_COMMAND  {"start"};
+static const char*       HELP_COMMAND   {"help"};
 static const char*       TOKEN          {""};
 static const char*       DEFAULT_REPLY  {"Defeat Global Fascism"};
 static const char*       DEFAULT_RETORT {"I hear you, bitch"};
 static const char*       MARKDOWN_MODE  {"Markdown"};
-static const uint32_t    THIRTY_MINS    {1800};
+static const uint32_t    FIFTH_OF_DAY   {};
 static const uint32_t    KANYE_URL_INDEX   {0};
 static const uint32_t    ZENQUOTE_URL_INDEX{1};
 static const uint32_t    BTC_URL_INDEX     {2};
@@ -18,6 +19,7 @@ static const uint32_t    INSULT_URL_INDEX  {3};
 static const uint32_t    WIKI_URL_INDEX    {4};
 static const uint32_t    LINK_URL_INDEX    {5};
 static const uint32_t    ETH_URL_INDEX     {6};
+static const uint32_t    GTRENDS_URL_INDEX {7}; // TODO: Add
 static const char*       URLS[] {
   "https://api.kanye.rest/",
   "https://zenquotes.io/api/random",
@@ -46,11 +48,12 @@ static kint8_t chat_idx{};
 static void LogMessage(const MessagePtr& message)
 {
   log(std::string{"User "                  }, message->from->firstName,
-      std::string{" from chat "            }, std::to_string(message->chat->id),
+      std::string{" from chat "            }, message->chat->title,
+      std::string{" with ID "              }, std::to_string(message->chat->id),
       std::string{" said the following: \n"}, message->text);
 }
 
-static bool ActionTimer(uint32_t duration = THIRTY_MINS)
+static bool ActionTimer(uint32_t duration = FIFTH_OF_DAY)
 {
   const TimePoint now = std::chrono::system_clock::now();
   const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - initial_time).count();
@@ -226,7 +229,7 @@ static std::string ExtractWikiText(const nlohmann::json& json)
 }
 
 /**
- *
+ * GetWiki
  */
 static std::string GetWiki(std::string message)
 {
@@ -235,20 +238,25 @@ static std::string GetWiki(std::string message)
     return (!json.is_null() && json.is_object() && !json["query"]["search"].empty());
   };
 
-    std::string text{};
-    const std::string query = StringTools::urlEncode(message.substr(6));
-    RequestResponse   response{cpr::Get(cpr::Url{URLS[WIKI_URL_INDEX]} + query, cpr::VerifySsl{false})};
-    if (!response.error)
-    {
-      auto json = response.json();
-      if (IsValid(json))
-        text +=  ExtractWikiText(json);
-      else
-        text += query + " was not found.";
-    }
-    return text;
+  std::string text{};
+  const std::string query = StringTools::urlEncode(message.substr(6));
+  RequestResponse   response{cpr::Get(cpr::Url{URLS[WIKI_URL_INDEX]} + query, cpr::VerifySsl{false})};
+  if (!response.error)
+  {
+    auto json = response.json();
+    if (IsValid(json))
+      text +=  ExtractWikiText(json);
+    else
+      text += query + " was not found.";
+  }
+  return text;
 }
 
+/**
+ * Greeting
+ *
+ * Bot greeting and list of commands
+ */
 static std::string Greeting(MessagePtr& message)
 {
   static const char* BotInfo{
@@ -331,6 +339,10 @@ void KeleqramBot::SetListeners()
   m_bot.getEvents().onCommand   (START_COMMAND, [this](MessagePtr message)
   {
     SendMessage("Hi!", message->chat->id);
+  });
+  m_bot.getEvents().onCommand   (HELP_COMMAND, [this](MessagePtr message)
+  {
+    SendMessage(Greeting(message), message->chat->id, MARKDOWN_MODE);
   });
   m_bot.getEvents().onAnyMessage([this](MessagePtr message)
   {
