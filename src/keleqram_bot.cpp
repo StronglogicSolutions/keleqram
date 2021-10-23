@@ -11,7 +11,7 @@ static const char*       TOKEN          {""};
 static const char*       DEFAULT_REPLY  {"Defeat Global Fascism"};
 static const char*       DEFAULT_RETORT {"I hear you, bitch"};
 static const char*       MARKDOWN_MODE  {"Markdown"};
-static const uint32_t    FIFTH_OF_DAY   {};
+static const uint32_t    FIFTH_OF_DAY   {17280};
 static const uint32_t    KANYE_URL_INDEX   {0};
 static const uint32_t    ZENQUOTE_URL_INDEX{1};
 static const uint32_t    BTC_URL_INDEX     {2};
