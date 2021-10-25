@@ -484,10 +484,13 @@ void KeleqramBot::DeleteMessages(MessagePtr message)
   };
 
   const int64_t     chat_id    = message->chat->id;
-        ChatMsgs    messages   = tx_msgs[chat_id];
+        ChatMsgs&   messages   = tx_msgs[chat_id];
   if (messages.size())
     for (auto it = (messages.end() - GetNum(message->text)); it != messages.end(); it++)
+    {
       m_api.deleteMessage(chat_id, *(it));
+      messages.erase(it);
+    }
 }
 /**
   ┌──────────────────────────────────────────────────────────┐
