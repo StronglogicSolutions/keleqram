@@ -1,14 +1,17 @@
 #include <stdio.h>
 #include <tgbot/tgbot.h>
 #include <vector>
+#include <unordered_map>
 
 namespace keleqram {
 using  TimePoint         = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration          = std::chrono::seconds;
 using  MessagePtr        = TgBot::Message::Ptr;
 using  TelegramException = TgBot::TgException;
-
+using  TXMessages        = std::unordered_map<int64_t, std::vector<int32_t>>;
 const extern int64_t DEFAULT_CHAT_ID;
+
+
 
 template<typename... Args>
 static void log(Args... args)
@@ -35,9 +38,10 @@ template<typename T>
 void SendMessage(const std::string& text, const T& id, const std::string& parse_mode = "");
 template<typename T>
 void SendMedia  (const std::string& url,  const T& id);
+void DeleteMessages(MessagePtr message);
 
 private:
-bool IsReply(const int32_t& id) const;
+bool IsReply(const int64_t& chat_id, const int32_t& id);
 
 TelegramBot          m_bot;
 TelegramAPI          m_api;
@@ -46,7 +50,7 @@ uint32_t             tx;
 uint32_t             rx;
 uint32_t             tx_err;
 uint32_t             rx_err;
-std::vector<int32_t> tx_msg_ids;
+TXMessages           tx_msgs;
 };
 
 class kint8_t

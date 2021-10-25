@@ -7,6 +7,7 @@ namespace keleqram {
 static TimePoint         initial_time = std::chrono::system_clock::now();
 static const char*       START_COMMAND  {"start"};
 static const char*       HELP_COMMAND   {"help"};
+static const char*       DELETE_COMMAND {"delete"};
 static const char*       TOKEN          {""};
 static const char*       DEFAULT_REPLY  {"Defeat Global Fascism"};
 static const char*       DEFAULT_RETORT {"I hear you, bitch"};
@@ -30,7 +31,6 @@ static const char*       URLS[] {
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD"
 };
 static const int64_t     CHAT_IDs[] {
-
 };
 
 const int64_t DEFAULT_CHAT_ID = *(CHAT_IDs);
@@ -268,7 +268,10 @@ static std::string Greeting(MessagePtr& message)
     "/eth          - Latest Ethereum price\n"
     "/insult       - You deserve what you get\n"
     "/wiki <query> - Search Wikipedia```"};
-  const auto& name = message->newChatMember->firstName.empty() ? message->from->firstName : message->newChatMember->firstName;
+  const auto& name = (message->newChatMember) ?
+                      (message->newChatMember->firstName.empty()) ?
+                        message->from->firstName : message->newChatMember->firstName :
+                     (message->from) ? message->from->firstName : "the room";
   const auto& room = message->chat->title;
   return "Welcome to " + room + ", " + name + "\n\n" + BotInfo;
 };
@@ -331,18 +334,23 @@ void KeleqramBot::Poll()
     SendMessage(GetRequest(ZENQUOTE_URL_INDEX), CHAT_IDs[chat_idx++]);
 }
 
+
 /**
  * SetListeners
  */
 void KeleqramBot::SetListeners()
 {
-  m_bot.getEvents().onCommand   (START_COMMAND, [this](MessagePtr message)
+  m_bot.getEvents().onCommand   (START_COMMAND,  [this](MessagePtr message)
   {
     SendMessage("Hi!", message->chat->id);
   });
-  m_bot.getEvents().onCommand   (HELP_COMMAND, [this](MessagePtr message)
+  m_bot.getEvents().onCommand   (HELP_COMMAND,   [this](MessagePtr message)
   {
     SendMessage(Greeting(message), message->chat->id, MARKDOWN_MODE);
+  });
+  m_bot.getEvents().onCommand   (DELETE_COMMAND, [this](MessagePtr message)
+  {
+    DeleteMessages(message);
   });
   m_bot.getEvents().onAnyMessage([this](MessagePtr message)
   {
@@ -355,9 +363,9 @@ void KeleqramBot::SetListeners()
  *
  * @param [in] {int32_t}
  */
-bool KeleqramBot::IsReply(const int32_t& id) const
+bool KeleqramBot::IsReply(const int64_t& chat_id, const int32_t& id)
 {
-  for (const auto& message_id : tx_msg_ids)
+  for (const auto& message_id : tx_msgs[chat_id])
     if (message_id == id) return true;
   return false;
 }
@@ -393,7 +401,7 @@ void KeleqramBot::SendMessage(const std::string& text, const T& id, const std::s
   static const ReplyPtr NoInterface   {nullptr};
          const int64_t  dest    =     ValidateID(id);
 
-  tx_msg_ids.emplace_back(m_api.sendMessage(dest, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
+  tx_msgs[dest].emplace_back(m_api.sendMessage(dest, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
   log("Sent ", text.c_str(), " to " , std::to_string(dest).c_str());
 }
 
@@ -434,7 +442,7 @@ void KeleqramBot::HandleMessage(MessagePtr message)
   const int64_t&   id            = message->chat->id;
   LogMessage(message);
 
-  if (reply_message && IsReply(reply_message->messageId))
+  if (reply_message && IsReply(id, reply_message->messageId))
     SendMessage(DEFAULT_RETORT, id);
   else
   if (IsEvent(message))
@@ -457,6 +465,30 @@ void KeleqramBot::HandleEvent(MessagePtr message)
     SendMessage("Good riddance", message->chat->id);
 }
 
+void KeleqramBot::DeleteMessages(MessagePtr message)
+{
+  using ChatMsgs = std::vector<int32_t>;
+  const auto GetNum = [](const std::string& s) -> int32_t
+  {
+                 int32_t n{};
+    static const char*   prefix{"/delete last "};
+    static const size_t  prefix_length{13};
+           const size_t  idx = s.find(prefix);
+    if (!idx)
+    {
+      const auto& rem = s.substr(prefix_length);
+      if (isdigit(rem.front()))
+        n = std::stoi(rem);
+    }
+    return n;
+  };
+
+  const int64_t     chat_id    = message->chat->id;
+        ChatMsgs    messages   = tx_msgs[chat_id];
+  if (messages.size())
+    for (auto it = (messages.end() - GetNum(message->text)); it != messages.end(); it++)
+      m_api.deleteMessage(chat_id, *(it));
+}
 /**
   ┌──────────────────────────────────────────────────────────┐
   │░░░░░░░░░░░░░░░░░░░░░░ Specializations ░░░░░░░░░░░░░░░░░░░░│
