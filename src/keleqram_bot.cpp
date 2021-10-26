@@ -318,7 +318,11 @@ static std::string HandleRequest(std::string message)
 KeleqramBot::KeleqramBot(const std::string& token)
 : m_bot((token.empty()) ? TOKEN : token),
   m_api(m_bot.getApi()),
-  m_poll(m_bot)
+  m_poll(m_bot),
+  tx(0),
+  rx(0),
+  tx_err(0),
+  rx_err(0)
 {
   Hello(m_bot);
   SetListeners();
@@ -333,7 +337,6 @@ void KeleqramBot::Poll()
   if (ActionTimer())
     SendMessage(GetRequest(ZENQUOTE_URL_INDEX), CHAT_IDs[chat_idx++]);
 }
-
 
 /**
  * SetListeners
@@ -392,9 +395,9 @@ static const int64_t ValidateID(const T& id)
 template<typename T>
 void KeleqramBot::SendMessage(const std::string& text, const T& id, const std::string& parse_mode)
 {
-  if (text.empty()) return;
-
   using ReplyPtr = TgBot::GenericReply::Ptr;
+
+  if (text.empty()) return;
 
   static const bool     PreviewsActive{false};
   static const int32_t  NoReplyID     {0};
@@ -485,11 +488,12 @@ void KeleqramBot::DeleteMessages(MessagePtr message)
 
   const int64_t     chat_id    = message->chat->id;
         ChatMsgs&   messages   = tx_msgs[chat_id];
+
   if (messages.size())
-    for (auto it = (messages.end() - GetNum(message->text)); it != messages.end(); it++)
+    for (auto it = (messages.end() - GetNum(message->text)); it != messages.end();)
     {
       m_api.deleteMessage(chat_id, *(it));
-      messages.erase(it);
+      it = messages.erase(it);
     }
 }
 /**
