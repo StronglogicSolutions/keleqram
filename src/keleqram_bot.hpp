@@ -56,7 +56,7 @@ TXMessages           tx_msgs;
 class kint8_t
 {
 public:
-kint8_t(uint8_t max_value = 4)
+kint8_t(uint8_t max_value = 5)
 : m_value(0),
   m_max(max_value)
 {}

@@ -31,6 +31,7 @@ static const char*       URLS[] {
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD"
 };
 static const int64_t     CHAT_IDs[] {
+
 };
 
 const int64_t DEFAULT_CHAT_ID = *(CHAT_IDs);
@@ -84,6 +85,42 @@ static std::string ToLower(const std::string& s)
 static void Hello(TgBot::Bot& bot)
 {
   printf("Bot username: %s\n", bot.getApi().getMe()->username.c_str());
+}
+
+static std::string DecodeHTML(const std::string& text)
+{
+  std::string                                  decoded{};
+  std::unordered_map<std::string, std::string> convert({
+    {"&quot;",  "\""},
+    {"&apos;",  "'"},
+    {"&amp;",   "&"},
+    {"&gt;",    ">"},
+    {"&lt;",    "<"},
+    {"&frasl;", "/"}});
+
+  for (size_t i = 0; i < text.size(); ++i)
+  {
+    bool flag = false;
+    for (const auto& [key, value] : convert)
+    {
+      if (i + key.size() - 1 < text.size())
+      {
+        if (text.substr(i, key.size()) == key)
+        {
+          decoded += value;
+          i += key.size() - 1;
+          flag = true;
+          break;
+        }
+      }
+    }
+
+  if (!flag)
+    decoded += text[i];
+
+  }
+
+  return decoded;
 }
 
 struct MimeType
@@ -216,16 +253,23 @@ static std::string GetRequest(uint32_t url_index)
  */
 static std::string ExtractWikiText(const nlohmann::json& json)
 {
-  const auto  item = json["query"]["search"][0];
-  std::string s    = item["snippet"].get<std::string>();
-
-  for (auto it = s.find("</span>"); it != std::string::npos;)
+  std::string text{};
+  if (!json.is_null() && json.is_object() && json.contains("query"))
   {
-    s   = s.substr(it + 7);
-    it  = s.find("</span>");
+    for (const auto& item : json["query"]["search"])
+    {
+      std::string s = item["snippet"].get<std::string>();
+      for (auto it = s.find("</span>"); it != std::string::npos;)
+      {
+        s   = s.substr(it + 7);
+        it  = s.find("</span>");
+      }
+      text += s;
+    }
   }
 
-  return item["title"].get<std::string>() + ":\n" + s;
+  auto decoded_text = DecodeHTML(text);
+  return decoded_text;
 }
 
 /**
@@ -480,7 +524,7 @@ void KeleqramBot::DeleteMessages(MessagePtr message)
     if (!idx)
     {
       const auto& rem = s.substr(prefix_length);
-      if (isdigit(rem.front()))
+      if (isdigit(rem.front())) // TODO: check them all, bitch
         n = std::stoi(rem);
     }
     return n;
