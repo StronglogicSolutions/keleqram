@@ -189,6 +189,55 @@ static std::string FetchTemporaryFile(const std::string& full_url, const bool ve
 }
 
 /**
+ * @brief Chunk Message
+ *
+ * @param   [in]  {std::string} message
+ * @returns [out] {std::vector<std::string>}
+ */
+static std::vector<std::string> const ChunkMessage(const std::string& message) {
+  static const uint32_t MAX_CHUNK_SIZE = TELEGRAM_CHAR_LIMIT - 6;
+
+  std::vector<std::string>     chunks{};
+  const std::string::size_type message_size {message.size()};
+  const std::string::size_type num_of_chunks{message.size() / MAX_CHUNK_SIZE + 1};
+  uint32_t                     chunk_index  {1};
+  std::string::size_type       bytes_chunked{ };
+
+  if (num_of_chunks > 1)
+  {
+    chunks.reserve(num_of_chunks);
+    while (bytes_chunked < message_size)
+    {
+      const std::string::size_type size_to_chunk =
+        (bytes_chunked + MAX_CHUNK_SIZE > message_size) ?
+          (message_size - bytes_chunked) :
+          MAX_CHUNK_SIZE;
+
+      std::string oversized_chunk = message.substr(bytes_chunked, size_to_chunk);
+
+      const std::string::size_type ws_idx = oversized_chunk.find_last_of(" ") + 1;
+      const std::string::size_type pd_idx = oversized_chunk.find_last_of(".") + 1;
+      const std::string::size_type index  = (size_to_chunk > MAX_CHUNK_SIZE) ?
+         (ws_idx > pd_idx) ?  ws_idx :
+                              pd_idx
+                           :
+         size_to_chunk;
+
+      chunks.emplace_back((!index) ?
+        oversized_chunk :
+        oversized_chunk.substr(0, index) + '\n' +
+        std::to_string(chunk_index++)    + '/'  + std::to_string(num_of_chunks));
+
+      bytes_chunked += index;
+    }
+  }
+  else
+    chunks.emplace_back(message);
+
+  return chunks;
+}
+
+/**
  * GetRequest
  */
 static std::string GetRequest(uint32_t url_index)
@@ -437,19 +486,22 @@ static const int64_t ValidateID(const T& id)
  * @param [in] {std::string}
  */
 template<typename T>
-void KeleqramBot::SendMessage(const std::string& text, const T& id, const std::string& parse_mode)
+void KeleqramBot::SendMessage(const std::string& message, const T& id, const std::string& parse_mode)
 {
   using ReplyPtr = TgBot::GenericReply::Ptr;
 
-  if (text.empty()) return;
+  if (message.empty()) return;
 
   static const bool     PreviewsActive{false};
   static const int32_t  NoReplyID     {0};
   static const ReplyPtr NoInterface   {nullptr};
          const int64_t  dest    =     ValidateID(id);
 
-  tx_msgs[dest].emplace_back(m_api.sendMessage(dest, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
-  log("Sent ", text.c_str(), " to " , std::to_string(dest).c_str());
+  for (const auto& text : ChunkMessage(message))
+  {
+    tx_msgs[dest].emplace_back(m_api.sendMessage(dest, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
+    log("Sent ", text.c_str(), " to " , std::to_string(dest).c_str());
+  }
 }
 
 /**
