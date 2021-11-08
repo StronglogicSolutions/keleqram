@@ -1,16 +1,11 @@
-#include <stdio.h>
-#include <tgbot/tgbot.h>
 #include <vector>
 #include <unordered_map>
+#include "util.hpp"
 
 namespace keleqram {
-using  TimePoint         = std::chrono::time_point<std::chrono::system_clock>;
-using  Duration          = std::chrono::seconds;
-using  MessagePtr        = TgBot::Message::Ptr;
 using  TelegramException = TgBot::TgException;
 using  TXMessages        = std::unordered_map<int64_t, std::vector<int32_t>>;
 const extern int64_t DEFAULT_CHAT_ID;
-static const int32_t TELEGRAM_CHAR_LIMIT{4096};
 
 template<typename... Args>
 static void log(Args... args)

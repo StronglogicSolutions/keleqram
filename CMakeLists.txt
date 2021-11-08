@@ -22,7 +22,12 @@ set (BUILD_SHARED_LIBS ON)
 add_subdirectory(${nlohmann_json_source} third_party/json)
 add_subdirectory(third_party/tgbot-cpp)
 
-add_library(keleqram STATIC src/keleqram_bot.cpp)
+set(SOURCE_FILES
+  src/keleqram_bot.cpp
+  src/util.cpp
+)
+
+add_library(keleqram STATIC ${SOURCE_FILES})
 add_executable(${PROJECT_NAME} src/main.cpp)
 
 target_link_libraries(keleqram TgBot ${CMAKE_THREAD_LIBS_INIT} ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES} ${CURL_LIBRARIES} cpr::cpr nlohmann_json::nlohmann_json)
