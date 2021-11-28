@@ -13,7 +13,7 @@ find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Boost COMPONENTS system REQUIRED)
 find_package(CURL)
-include_directories(/usr/local/include src ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIR})
+include_directories(/usr/local/include src ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIR} third_party/inih/cpp)
 if (CURL_FOUND)
     include_directories(${CURL_INCLUDE_DIRS})
     add_definitions(-DHAVE_CURL)
@@ -25,6 +25,8 @@ add_subdirectory(third_party/tgbot-cpp)
 set(SOURCE_FILES
   src/keleqram_bot.cpp
   src/util.cpp
+  third_party/inih/ini.c
+  third_party/inih/cpp/INIReader.cpp
 )
 
 add_library(keleqram STATIC ${SOURCE_FILES})

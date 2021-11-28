@@ -2,13 +2,13 @@
 #include <chrono>
 
 namespace keleqram {
-static const char*       START_COMMAND  {"start"};
-static const char*       HELP_COMMAND   {"help"};
-static const char*       DELETE_COMMAND {"delete"};
-static const char*       TOKEN          {""};
-static const char*       DEFAULT_REPLY  {"Defeat Global Fascism"};
-static const char*       DEFAULT_RETORT {"I hear you, bitch"};
-static const char*       MARKDOWN_MODE  {"Markdown"};
+static const char*       START_COMMAND   {"start"};
+static const char*       HELP_COMMAND    {"help"};
+static const char*       DELETE_COMMAND  {"delete"};
+static const char*       MESSAGE_COMMAND {"message"};
+static const char*       TOKEN           {""};
+static const char*       DEFAULT_REPLY   {"Defeat Global Fascism"};
+static const char*       MARKDOWN_MODE   {"Markdown"};
 static const uint32_t    KANYE_URL_INDEX   {0};
 static const uint32_t    ZENQUOTE_URL_INDEX{1};
 static const uint32_t    BTC_URL_INDEX     {2};
@@ -29,12 +29,12 @@ static const char*       URLS[] {
 static const int64_t     CHAT_IDs[] {
 
 };
+static const int32_t     ADMIN_IDs[] {
 
-const int64_t DEFAULT_CHAT_ID = *(CHAT_IDs);
-/**
- * Global var
- */
-static kint8_t chat_idx{};
+};
+static const int32_t     ADMIN_NUM{0x01};
+       const int64_t     DEFAULT_CHAT_ID = *(CHAT_IDs);
+static kint8_t           chat_idx{};
 
 /**
   ┌──────────────────────────────────────────────────────────┐
@@ -43,10 +43,23 @@ static kint8_t chat_idx{};
 static void LogMessage(const MessagePtr& message)
 {
   log(std::string{"User "                  }, message->from->firstName,
+      std::string{" with UID "             }, std::to_string(message->from->id),
       std::string{" from chat "            }, message->chat->title,
       std::string{" with ID "              }, std::to_string(message->chat->id),
       std::string{" said the following: \n"}, message->text);
 }
+
+/**
+ * IsAdmin
+ */
+static bool IsAdmin(const int32_t& id)
+{
+  for (auto i = 0; i < ADMIN_NUM; i++)
+    if (ADMIN_IDs[i] == id)
+      return true;
+  return false;
+}
+
 /**
  * Greeting
  *
@@ -202,8 +215,12 @@ KeleqramBot::KeleqramBot(const std::string& token)
   rx_err(0),
   tx_msgs(TXMessages{})
 {
+  if (config.ParseError())
+    throw std::invalid_argument{"Unable to load config"};
+
   Hello(m_bot);
   SetListeners();
+  SetReplies(m_replies);
 }
 
 /**
@@ -217,19 +234,52 @@ void KeleqramBot::Poll()
 }
 
 /**
+ * HandlePrivateRequest
+ */
+void KeleqramBot::HandlePrivateRequest(MessagePtr message)
+{
+  const auto GetRequestInfo = [](const std::string& s) -> RequestInfo
+  {
+    static const size_t prefix_num = 9;
+                 auto   rem        = s.substr(prefix_num);
+           const auto   idx        = rem.find_first_of(' ');
+           const auto   uid        = rem.substr(0, idx - 1);
+           const auto   msg        = rem.substr(idx + 1);
+           const auto   id         = (IsAllNum(uid)) ? uid : "@channel" + uid;
+    return RequestInfo{id, msg};
+  };
+
+  try
+  {
+    if (!IsAdmin(message->from->id)) return;
+
+    const auto info = GetRequestInfo(message->text);
+    SendMessage(info.message, info.id);
+  }
+  catch (const std::exception& e)
+  {
+    log("Failed to parse private message request. Exception: ", e.what());
+  }
+}
+
+/**
  * SetListeners
  */
 void KeleqramBot::SetListeners()
 {
-  m_bot.getEvents().onCommand   (START_COMMAND,  [this](MessagePtr message)
+  m_bot.getEvents().onCommand   (START_COMMAND,   [this](MessagePtr message)
   {
     SendMessage("Hi!", message->chat->id);
   });
-  m_bot.getEvents().onCommand   (HELP_COMMAND,   [this](MessagePtr message)
+  m_bot.getEvents().onCommand   (HELP_COMMAND,    [this](MessagePtr message)
   {
     SendMessage(Greeting(message), message->chat->id, MARKDOWN_MODE);
   });
-  m_bot.getEvents().onCommand   (DELETE_COMMAND, [this](MessagePtr message)
+  m_bot.getEvents().onCommand   (MESSAGE_COMMAND, [this](MessagePtr message)
+  {
+    HandlePrivateRequest(message);
+  });
+  m_bot.getEvents().onCommand   (DELETE_COMMAND,  [this](MessagePtr message)
   {
     DeleteMessages(message);
   });
@@ -327,7 +377,7 @@ void KeleqramBot::HandleMessage(MessagePtr message)
   LogMessage(message);
 
   if (reply_message && IsReply(id, reply_message->messageId))
-    SendMessage(DEFAULT_RETORT, id);
+    SendMessage(m_replies.at(GetRandom(0, m_replies.size())), id);
   else
   if (IsEvent(message))
     HandleEvent(message);
@@ -352,14 +402,8 @@ void KeleqramBot::HandleEvent(MessagePtr message)
 void KeleqramBot::DeleteMessages(MessagePtr message)
 {
   using ChatMsgs = std::vector<int32_t>;
-
-  const auto GetNum = [](const std::string& s) -> DeleteAction
-  {
-    return DeleteAction(s);
-  };
-
   const int64_t     chat_id  = message->chat->id;
-  const auto        action   = GetNum(message->text);
+  const auto        action   = DeleteAction(message->text);
         ChatMsgs&   messages = tx_msgs[chat_id];
   if (action.valid && messages.size())
   {

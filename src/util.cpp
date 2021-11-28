@@ -15,10 +15,10 @@ DeleteAction::DeleteAction(const std::string& s)
 
   if (delete_last || delete_back)
   {
-    valid = true;
+    valid           = true;
     const auto& rem = s.substr(prefix_length);
-  if (isdigit(rem.front()))
-    n = std::stoi(rem);
+    if (isdigit(rem.front()))
+      n = std::stoi(rem);
   }
 }
 } // ns keleqram

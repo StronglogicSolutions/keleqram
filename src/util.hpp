@@ -1,12 +1,17 @@
 #include <sstream>
 #include <tgbot/tgbot.h>
+#include <cctype>
 #include "request.hpp"
+#include "INIReader.h"
+#include <random>
 
 namespace keleqram {
 using  TimePoint  = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration   = std::chrono::seconds;
 using  MessagePtr = TgBot::Message::Ptr;
 
+static INIReader      config{"config/config.ini"};
+static const char*    CONFIG_SECTION{"keleqram"};
 static const int32_t  TELEGRAM_CHAR_LIMIT{4096};
 static const uint32_t FIFTH_OF_DAY   {17280};
 static TimePoint      initial_time = std::chrono::system_clock::now();
@@ -55,6 +60,14 @@ static std::string ToLower(const std::string& s)
   std::string t{s};
   std::transform(t.begin(), t.end(), t.begin(), [](char c) { return tolower(c); });
   return t;
+}
+
+[[ maybe_unused ]]
+static bool IsAllNum(const std::string& s)
+{
+  for (const char& c : s)
+    if (!std::isdigit(c)) return false;
+  return true;
 }
 
 [[ maybe_unused ]]
@@ -243,4 +256,26 @@ static std::string ExtractWikiText(const nlohmann::json& json)
   return decoded_text;
 }
 
+[[ maybe_unused ]]
+static int32_t GetRandom(const int32_t& min, const int32_t& max)
+{
+  static std::random_device                     rd;
+  static std::default_random_engine             e{rd()};
+  static std::uniform_int_distribution<int32_t> dis(min, max);
+  return dis(e);
+};
+
+[[ maybe_unused ]]
+static std::string GetConfigValue(const std::string& key)
+{
+  return config.GetString(CONFIG_SECTION, key, "");
+}
+
+[[ maybe_unused ]]
+static void SetReplies(std::vector<std::string>& replies)
+{
+  std::string replies_s = GetConfigValue("replies");
+  for (const auto& reply : StringTools::split(replies_s, '|'))
+    replies.emplace_back(reply);
+}
 } // ns keleqram

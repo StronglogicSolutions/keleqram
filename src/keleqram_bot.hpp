@@ -15,18 +15,26 @@ static void log(Args... args)
   std::cout << std::endl;
 }
 
+struct RequestInfo
+{
+std::string id;
+std::string message;
+};
+
 class KeleqramBot
 {
 public:
 using LongPoll    = TgBot::TgLongPoll;
 using TelegramBot = TgBot::Bot;
 using TelegramAPI = TgBot::Api;
+using Replies     = std::vector<std::string>;
 
 KeleqramBot(const std::string& token = "");
 
 void SetListeners();
 void Poll();
 void HandleMessage(MessagePtr message);
+void HandlePrivateRequest(MessagePtr message);
 void HandleEvent(MessagePtr message);
 template<typename T>
 void SendMessage(const std::string& text, const T& id, const std::string& parse_mode = "");
@@ -45,6 +53,7 @@ uint32_t             rx;
 uint32_t             tx_err;
 uint32_t             rx_err;
 TXMessages           tx_msgs;
+Replies              m_replies;
 };
 
 class kint8_t
