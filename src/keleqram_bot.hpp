@@ -1,16 +1,11 @@
-#include <stdio.h>
-#include <tgbot/tgbot.h>
 #include <vector>
 #include <unordered_map>
+#include "util.hpp"
 
 namespace keleqram {
-using  TimePoint         = std::chrono::time_point<std::chrono::system_clock>;
-using  Duration          = std::chrono::seconds;
-using  MessagePtr        = TgBot::Message::Ptr;
 using  TelegramException = TgBot::TgException;
 using  TXMessages        = std::unordered_map<int64_t, std::vector<int32_t>>;
 const extern int64_t DEFAULT_CHAT_ID;
-static const int32_t TELEGRAM_CHAR_LIMIT{4096};
 
 template<typename... Args>
 static void log(Args... args)
@@ -20,18 +15,26 @@ static void log(Args... args)
   std::cout << std::endl;
 }
 
+struct RequestInfo
+{
+std::string id;
+std::string message;
+};
+
 class KeleqramBot
 {
 public:
 using LongPoll    = TgBot::TgLongPoll;
 using TelegramBot = TgBot::Bot;
 using TelegramAPI = TgBot::Api;
+using Replies     = std::vector<std::string>;
 
 KeleqramBot(const std::string& token = "");
 
 void SetListeners();
 void Poll();
 void HandleMessage(MessagePtr message);
+void HandlePrivateRequest(MessagePtr message);
 void HandleEvent(MessagePtr message);
 template<typename T>
 void SendMessage(const std::string& text, const T& id, const std::string& parse_mode = "");
@@ -50,6 +53,7 @@ uint32_t             rx;
 uint32_t             tx_err;
 uint32_t             rx_err;
 TXMessages           tx_msgs;
+Replies              m_replies;
 };
 
 class kint8_t

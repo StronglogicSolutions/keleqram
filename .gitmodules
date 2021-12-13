@@ -1,3 +1,6 @@
 [submodule "third_party/tgbot-cpp"]
 	path = third_party/tgbot-cpp
 	url = https://github.com/reo7sp/tgbot-cpp
+[submodule "third_party/inih"]
+	path = third_party/inih
+	url = https://github.com/benhoyt/inih
