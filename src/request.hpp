@@ -3,7 +3,6 @@
 #include <cpr/cpr.h>
 #include <nlohmann/json.hpp>
 
-
 namespace keleqram {
 class request_error : public std::logic_error {
 public:
@@ -100,4 +99,4 @@ static void SaveToFile(const std::string& data, const std::string& path)
   o << data;
 }
 
-} // namespace kwitter
+} // ns keleqram

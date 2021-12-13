@@ -6,11 +6,13 @@
 namespace keleqram {
 static TimePoint         initial_time = std::chrono::system_clock::now();
 static const char*       START_COMMAND  {"start"};
+static const char*       HELP_COMMAND   {"help"};
+static const char*       DELETE_COMMAND {"delete"};
 static const char*       TOKEN          {""};
 static const char*       DEFAULT_REPLY  {"Defeat Global Fascism"};
 static const char*       DEFAULT_RETORT {"I hear you, bitch"};
 static const char*       MARKDOWN_MODE  {"Markdown"};
-static const uint32_t    THIRTY_MINS    {1800};
+static const uint32_t    FIFTH_OF_DAY   {17280};
 static const uint32_t    KANYE_URL_INDEX   {0};
 static const uint32_t    ZENQUOTE_URL_INDEX{1};
 static const uint32_t    BTC_URL_INDEX     {2};
@@ -18,6 +20,7 @@ static const uint32_t    INSULT_URL_INDEX  {3};
 static const uint32_t    WIKI_URL_INDEX    {4};
 static const uint32_t    LINK_URL_INDEX    {5};
 static const uint32_t    ETH_URL_INDEX     {6};
+static const uint32_t    GTRENDS_URL_INDEX {7}; // TODO: Add
 static const char*       URLS[] {
   "https://api.kanye.rest/",
   "https://zenquotes.io/api/random",
@@ -46,11 +49,12 @@ static kint8_t chat_idx{};
 static void LogMessage(const MessagePtr& message)
 {
   log(std::string{"User "                  }, message->from->firstName,
-      std::string{" from chat "            }, std::to_string(message->chat->id),
+      std::string{" from chat "            }, message->chat->title,
+      std::string{" with ID "              }, std::to_string(message->chat->id),
       std::string{" said the following: \n"}, message->text);
 }
 
-static bool ActionTimer(uint32_t duration = THIRTY_MINS)
+static bool ActionTimer(uint32_t duration = FIFTH_OF_DAY)
 {
   const TimePoint now = std::chrono::system_clock::now();
   const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - initial_time).count();
@@ -81,6 +85,42 @@ static std::string ToLower(const std::string& s)
 static void Hello(TgBot::Bot& bot)
 {
   printf("Bot username: %s\n", bot.getApi().getMe()->username.c_str());
+}
+
+static std::string DecodeHTML(const std::string& text)
+{
+  std::string                                  decoded{};
+  std::unordered_map<std::string, std::string> convert({
+    {"&quot;",  "\""},
+    {"&apos;",  "'"},
+    {"&amp;",   "&"},
+    {"&gt;",    ">"},
+    {"&lt;",    "<"},
+    {"&frasl;", "/"}});
+
+  for (size_t i = 0; i < text.size(); ++i)
+  {
+    bool flag = false;
+    for (const auto& [key, value] : convert)
+    {
+      if (i + key.size() - 1 < text.size())
+      {
+        if (text.substr(i, key.size()) == key)
+        {
+          decoded += value;
+          i += key.size() - 1;
+          flag = true;
+          break;
+        }
+      }
+    }
+
+  if (!flag)
+    decoded += text[i];
+
+  }
+
+  return decoded;
 }
 
 struct MimeType
@@ -213,20 +253,27 @@ static std::string GetRequest(uint32_t url_index)
  */
 static std::string ExtractWikiText(const nlohmann::json& json)
 {
-  const auto  item = json["query"]["search"][0];
-  std::string s    = item["snippet"].get<std::string>();
-
-  for (auto it = s.find("</span>"); it != std::string::npos;)
+  std::string text{};
+  if (!json.is_null() && json.is_object() && json.contains("query"))
   {
-    s   = s.substr(it + 7);
-    it  = s.find("</span>");
+    for (const auto& item : json["query"]["search"])
+    {
+      std::string s = item["snippet"].get<std::string>();
+      for (auto it = s.find("</span>"); it != std::string::npos;)
+      {
+        s   = s.substr(it + 7);
+        it  = s.find("</span>");
+      }
+      text += s;
+    }
   }
 
-  return item["title"].get<std::string>() + ":\n" + s;
+  auto decoded_text = DecodeHTML(text);
+  return decoded_text;
 }
 
 /**
- *
+ * GetWiki
  */
 static std::string GetWiki(std::string message)
 {
@@ -235,20 +282,25 @@ static std::string GetWiki(std::string message)
     return (!json.is_null() && json.is_object() && !json["query"]["search"].empty());
   };
 
-    std::string text{};
-    const std::string query = StringTools::urlEncode(message.substr(6));
-    RequestResponse   response{cpr::Get(cpr::Url{URLS[WIKI_URL_INDEX]} + query, cpr::VerifySsl{false})};
-    if (!response.error)
-    {
-      auto json = response.json();
-      if (IsValid(json))
-        text +=  ExtractWikiText(json);
-      else
-        text += query + " was not found.";
-    }
-    return text;
+  std::string text{};
+  const std::string query = StringTools::urlEncode(message.substr(6));
+  RequestResponse   response{cpr::Get(cpr::Url{URLS[WIKI_URL_INDEX]} + query, cpr::VerifySsl{false})};
+  if (!response.error)
+  {
+    auto json = response.json();
+    if (IsValid(json))
+      text +=  ExtractWikiText(json);
+    else
+      text += query + " was not found.";
+  }
+  return text;
 }
 
+/**
+ * Greeting
+ *
+ * Bot greeting and list of commands
+ */
 static std::string Greeting(MessagePtr& message)
 {
   static const char* BotInfo{
@@ -260,7 +312,10 @@ static std::string Greeting(MessagePtr& message)
     "/eth          - Latest Ethereum price\n"
     "/insult       - You deserve what you get\n"
     "/wiki <query> - Search Wikipedia```"};
-  const auto& name = message->newChatMember->firstName.empty() ? message->from->firstName : message->newChatMember->firstName;
+  const auto& name = (message->newChatMember) ?
+                      (message->newChatMember->firstName.empty()) ?
+                        message->from->firstName : message->newChatMember->firstName :
+                     (message->from) ? message->from->firstName : "the room";
   const auto& room = message->chat->title;
   return "Welcome to " + room + ", " + name + "\n\n" + BotInfo;
 };
@@ -307,7 +362,11 @@ static std::string HandleRequest(std::string message)
 KeleqramBot::KeleqramBot(const std::string& token)
 : m_bot((token.empty()) ? TOKEN : token),
   m_api(m_bot.getApi()),
-  m_poll(m_bot)
+  m_poll(m_bot),
+  tx(0),
+  rx(0),
+  tx_err(0),
+  rx_err(0)
 {
   Hello(m_bot);
   SetListeners();
@@ -328,9 +387,17 @@ void KeleqramBot::Poll()
  */
 void KeleqramBot::SetListeners()
 {
-  m_bot.getEvents().onCommand   (START_COMMAND, [this](MessagePtr message)
+  m_bot.getEvents().onCommand   (START_COMMAND,  [this](MessagePtr message)
   {
     SendMessage("Hi!", message->chat->id);
+  });
+  m_bot.getEvents().onCommand   (HELP_COMMAND,   [this](MessagePtr message)
+  {
+    SendMessage(Greeting(message), message->chat->id, MARKDOWN_MODE);
+  });
+  m_bot.getEvents().onCommand   (DELETE_COMMAND, [this](MessagePtr message)
+  {
+    DeleteMessages(message);
   });
   m_bot.getEvents().onAnyMessage([this](MessagePtr message)
   {
@@ -343,9 +410,9 @@ void KeleqramBot::SetListeners()
  *
  * @param [in] {int32_t}
  */
-bool KeleqramBot::IsReply(const int32_t& id) const
+bool KeleqramBot::IsReply(const int64_t& chat_id, const int32_t& id)
 {
-  for (const auto& message_id : tx_msg_ids)
+  for (const auto& message_id : tx_msgs[chat_id])
     if (message_id == id) return true;
   return false;
 }
@@ -372,16 +439,16 @@ static const int64_t ValidateID(const T& id)
 template<typename T>
 void KeleqramBot::SendMessage(const std::string& text, const T& id, const std::string& parse_mode)
 {
-  if (text.empty()) return;
-
   using ReplyPtr = TgBot::GenericReply::Ptr;
+
+  if (text.empty()) return;
 
   static const bool     PreviewsActive{false};
   static const int32_t  NoReplyID     {0};
   static const ReplyPtr NoInterface   {nullptr};
          const int64_t  dest    =     ValidateID(id);
 
-  tx_msg_ids.emplace_back(m_api.sendMessage(dest, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
+  tx_msgs[dest].emplace_back(m_api.sendMessage(dest, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
   log("Sent ", text.c_str(), " to " , std::to_string(dest).c_str());
 }
 
@@ -422,7 +489,7 @@ void KeleqramBot::HandleMessage(MessagePtr message)
   const int64_t&   id            = message->chat->id;
   LogMessage(message);
 
-  if (reply_message && IsReply(reply_message->messageId))
+  if (reply_message && IsReply(id, reply_message->messageId))
     SendMessage(DEFAULT_RETORT, id);
   else
   if (IsEvent(message))
@@ -445,6 +512,34 @@ void KeleqramBot::HandleEvent(MessagePtr message)
     SendMessage("Good riddance", message->chat->id);
 }
 
+void KeleqramBot::DeleteMessages(MessagePtr message)
+{
+  using ChatMsgs = std::vector<int32_t>;
+  const auto GetNum = [](const std::string& s) -> int32_t
+  {
+                 int32_t n{};
+    static const char*   prefix{"/delete last "};
+    static const size_t  prefix_length{13};
+           const size_t  idx = s.find(prefix);
+    if (!idx)
+    {
+      const auto& rem = s.substr(prefix_length);
+      if (isdigit(rem.front())) // TODO: check them all, bitch
+        n = std::stoi(rem);
+    }
+    return n;
+  };
+
+  const int64_t     chat_id    = message->chat->id;
+        ChatMsgs&   messages   = tx_msgs[chat_id];
+
+  if (messages.size())
+    for (auto it = (messages.end() - GetNum(message->text)); it != messages.end();)
+    {
+      m_api.deleteMessage(chat_id, *(it));
+      it = messages.erase(it);
+    }
+}
 /**
   ┌──────────────────────────────────────────────────────────┐
   │░░░░░░░░░░░░░░░░░░░░░░ Specializations ░░░░░░░░░░░░░░░░░░░░│
