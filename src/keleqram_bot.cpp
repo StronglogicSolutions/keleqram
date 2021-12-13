@@ -350,17 +350,37 @@ template<typename T>
 void KeleqramBot::SendMedia(const std::string& url,  const T& id)
 {
   if (url.empty()) return;
+
   const int64_t dest = ValidateID(id);
   const auto    path = FetchTemporaryFile(url);
   const auto    mime = GetMimeType(path);
-  if (mime.name.empty())
-    return (void)(log("Couldn't detect mime type"));
 
-  if (mime.IsPhoto())
-    m_api.sendPhoto(dest, TgBot::InputFile::fromFile(path, mime.name));
+  if (mime.name.empty())
+    return log("Couldn't detect mime type");
+
+  auto result = (mime.IsPhoto()) ? m_api.sendPhoto(dest, TgBot::InputFile::fromFile(path, mime.name)) :
+                                   m_api.sendVideo(dest, TgBot::InputFile::fromFile(path, mime.name));
+
+  if (result)
+    log("Uploaded ", url.c_str(), " to " , std::to_string(dest).c_str());
   else
-    m_api.sendVideo(dest, TgBot::InputFile::fromFile(path, mime.name));
-  log("Uploaded ", url.c_str(), " to " , std::to_string(dest).c_str());
+    log("Failed to upload media");
+}
+
+template<typename T>
+void KeleqramBot::SendPoll(const std::string& text, const T& id,  const std::vector<std::string>& options)
+{
+  const int64_t dest = ValidateID(id);
+  try
+  {
+    if (!m_api.sendPoll(dest, text, options))
+      log("Failed to send poll");
+  }
+  catch (const std::exception& e)
+  {
+    log("Exception caught: ", e.what());
+    throw;
+  }
 }
 
 /**
@@ -376,7 +396,7 @@ void KeleqramBot::HandleMessage(MessagePtr message)
   const int64_t&   id            = message->chat->id;
   LogMessage(message);
 
-  if (reply_message && IsReply(id, reply_message->messageId))
+  if (m_replies.size() && reply_message && IsReply(id, reply_message->messageId))
     SendMessage(m_replies.at(GetRandom(0, m_replies.size())), id);
   else
   if (IsEvent(message))
@@ -437,6 +457,8 @@ template void KeleqramBot::SendMessage(const std::string& text,
                                        const std::string& parse_mode = "");
 template void KeleqramBot::SendMedia  (const std::string& url,  const std::string& id);
 template void KeleqramBot::SendMedia  (const std::string& url,  const int64_t&     id);
+template void KeleqramBot::SendPoll   (const std::string& url,  const std::string& id, const std::vector<std::string>& options);
+template void KeleqramBot::SendPoll   (const std::string& url,  const int64_t&     id, const std::vector<std::string>& options);
 
 
 /**
