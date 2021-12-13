@@ -40,6 +40,8 @@ template<typename T>
 void SendMessage(const std::string& text, const T& id, const std::string& parse_mode = "");
 template<typename T>
 void SendMedia  (const std::string& url,  const T& id);
+template<typename T>
+void SendPoll   (const std::string& text, const T& id,  const std::vector<std::string>& options);
 void DeleteMessages(MessagePtr message);
 
 private:
