@@ -9,8 +9,12 @@ namespace keleqram {
 using  TimePoint  = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration   = std::chrono::seconds;
 using  MessagePtr = TgBot::Message::Ptr;
-
-static INIReader      config{"config/config.ini"};
+static std::string GetExecutableCWD()
+{
+  std::string full_path{realpath("/proc/self/exe", NULL)};
+  return full_path.substr(0, full_path.size() - (13));
+}
+static INIReader      config{"/data/stronglogic/kiq_telegram_bot/config/config.ini"};
 static const char*    CONFIG_SECTION{"keleqram"};
 static const int32_t  TELEGRAM_CHAR_LIMIT{4096};
 static const uint32_t FIFTH_OF_DAY   {17280};

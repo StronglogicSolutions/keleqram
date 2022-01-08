@@ -189,7 +189,7 @@ static std::string HandleRequest(std::string message)
     return GetRequest(ETH_URL_INDEX);
   if (ToLower(message) == "/insult")
     return GetRequest(INSULT_URL_INDEX);
-  if (ToLower(message).find("/wiki") != std::string::npos)
+  if (ToLower(message).find("/wiki") == 0)
     return GetWiki(message);
   return "";
 }
@@ -215,7 +215,9 @@ KeleqramBot::KeleqramBot(const std::string& token)
   rx_err(0),
   tx_msgs(TXMessages{})
 {
-  if (config.ParseError())
+
+
+  if (config.ParseError() < 0)
     throw std::invalid_argument{"Unable to load config"};
 
   Hello(m_bot);
@@ -368,13 +370,43 @@ void KeleqramBot::SendMedia(const std::string& url,  const T& id)
 }
 
 template<typename T>
-void KeleqramBot::SendPoll(const std::string& text, const T& id,  const std::vector<std::string>& options)
+std::string KeleqramBot::SendPoll(const std::string& text, const T& id, const std::vector<std::string>& options)
 {
   const int64_t dest = ValidateID(id);
   try
   {
-    if (!m_api.sendPoll(dest, text, options))
-      log("Failed to send poll");
+    MessagePtr poll_msg = m_api.sendPoll(dest, text, options);
+    return std::to_string(poll_msg->messageId);
+  }
+  catch (const std::exception& e)
+  {
+    log("Exception caught: ", e.what());
+    throw;
+  }
+}
+
+static std::string GetVoteJSON(const std::vector<TgBot::PollOption::Ptr>& data)
+{
+  nlohmann::json json = nlohmann::json::array();
+  for (const auto& option : data)
+  {
+    nlohmann::json obj{};
+    obj["option"] = option->text;
+    obj["value"]  = option->voterCount;
+    json.emplace_back(obj);
+  }
+
+  return json.dump();
+}
+
+std::string KeleqramBot::StopPoll(const std::string& id, const std::string& poll_id)
+{
+  using PollPtr = TgBot::Poll::Ptr;
+  const int64_t dest = ValidateID(id);
+  try
+  {
+    PollPtr poll = m_api.stopPoll(dest, std::stoll(poll_id));
+    return GetVoteJSON(poll->options);
   }
   catch (const std::exception& e)
   {
@@ -390,19 +422,37 @@ void KeleqramBot::SendPoll(const std::string& text, const T& id,  const std::vec
  */
 void KeleqramBot::HandleMessage(MessagePtr message)
 {
-  const auto IsEvent = [](const MessagePtr& message) -> bool { return message->text.empty(); };
+  using Payload = std::vector<std::string>;
+  auto IsEvent      = [](const MessagePtr& message) -> bool    { return message->text.empty();             };
+  auto Broadcast    = [this](const auto v)          -> void    { for (const auto& fn : m_observers) fn(v); };
+  auto IsPollResult = []()                          -> bool    { return false;                             };
+  auto GetPollData  = []()                          -> Payload { return Payload{};                         };
+  auto ShouldReply  = [this](const MessagePtr msg)  -> bool
+  {
+    const MessagePtr reply_message = msg->replyToMessage;
+    return (m_replies.size() && reply_message && IsReply(msg->chat->id, reply_message->messageId));
+  };
 
-  const MessagePtr reply_message = message->replyToMessage;
-  const int64_t&   id            = message->chat->id;
-  LogMessage(message);
+  try
+  {
+    const int64_t& id = message->chat->id;
+    LogMessage(message);
 
-  if (m_replies.size() && reply_message && IsReply(id, reply_message->messageId))
-    SendMessage(m_replies.at(GetRandom(0, m_replies.size())), id);
-  else
-  if (IsEvent(message))
-    HandleEvent(message);
-  else
-    SendMessage(HandleRequest(message->text), id);
+    if (ShouldReply(message))
+      SendMessage(m_replies.at(GetRandom(0, m_replies.size())), id);
+    else
+    if (IsEvent(message))
+      HandleEvent(message);
+    else
+    if (IsPollResult())
+      Broadcast(GetPollData());
+    else
+      SendMessage(HandleRequest(message->text), id);
+  }
+  catch (const std::exception& e)
+  {
+    log("Exception: ", e.what());
+  }
 }
 
 /**
@@ -449,17 +499,16 @@ void KeleqramBot::DeleteMessages(MessagePtr message)
   └──────────────────────────────────────────────────────────┘
 */
 
-template void KeleqramBot::SendMessage(const std::string& text,
-                                       const std::string& id,
-                                       const std::string& parse_mode = "");
-template void KeleqramBot::SendMessage(const std::string& text,
-                                       const int64_t&     id,
-                                       const std::string& parse_mode = "");
-template void KeleqramBot::SendMedia  (const std::string& url,  const std::string& id);
-template void KeleqramBot::SendMedia  (const std::string& url,  const int64_t&     id);
-template void KeleqramBot::SendPoll   (const std::string& url,  const std::string& id, const std::vector<std::string>& options);
-template void KeleqramBot::SendPoll   (const std::string& url,  const int64_t&     id, const std::vector<std::string>& options);
-
+template void        KeleqramBot::SendMessage(const std::string& text,
+                                              const std::string& id,
+                                              const std::string& parse_mode = "");
+template void        KeleqramBot::SendMessage(const std::string& text,
+                                              const int64_t&     id,
+                                              const std::string& parse_mode = "");
+template void        KeleqramBot::SendMedia  (const std::string& url,  const std::string& id);
+template void        KeleqramBot::SendMedia  (const std::string& url,  const int64_t&     id);
+template std::string KeleqramBot::SendPoll   (const std::string& url,  const std::string& id, const std::vector<std::string>& options);
+template std::string KeleqramBot::SendPoll   (const std::string& url,  const int64_t&     id, const std::vector<std::string>& options);
 
 /**
  * RunMain

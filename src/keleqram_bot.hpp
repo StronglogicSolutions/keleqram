@@ -21,6 +21,9 @@ std::string id;
 std::string message;
 };
 
+using ObserverFn = void(*)(const std::vector<std::string>&);
+using Observers  = std::vector<ObserverFn>;
+
 class KeleqramBot
 {
 public:
@@ -31,31 +34,34 @@ using Replies     = std::vector<std::string>;
 
 KeleqramBot(const std::string& token = "");
 
-void SetListeners();
-void Poll();
-void HandleMessage(MessagePtr message);
-void HandlePrivateRequest(MessagePtr message);
-void HandleEvent(MessagePtr message);
+void        SetListeners();
+void        Poll();
+void        HandleMessage(MessagePtr message);
+void        HandlePrivateRequest(MessagePtr message);
+void        HandleEvent(MessagePtr message);
 template<typename T>
-void SendMessage(const std::string& text, const T& id, const std::string& parse_mode = "");
+void        SendMessage(const std::string& text, const T& id, const std::string& parse_mode = "");
 template<typename T>
-void SendMedia  (const std::string& url,  const T& id);
+void        SendMedia  (const std::string& url,  const T& id);
 template<typename T>
-void SendPoll   (const std::string& text, const T& id,  const std::vector<std::string>& options);
-void DeleteMessages(MessagePtr message);
+std::string SendPoll   (const std::string& text, const T& id, const std::vector<std::string>& options);
+std::string StopPoll   (const std::string& id, const std::string& poll_id);
+void        DeleteMessages(MessagePtr message);
+void        AddObserver(ObserverFn fn_ptr);
 
 private:
-bool IsReply(const int64_t& chat_id, const int32_t& id);
+bool        IsReply(const int64_t& chat_id, const int32_t& id);
 
-TelegramBot          m_bot;
-TelegramAPI          m_api;
-LongPoll             m_poll;
-uint32_t             tx;
-uint32_t             rx;
-uint32_t             tx_err;
-uint32_t             rx_err;
-TXMessages           tx_msgs;
-Replies              m_replies;
+TelegramBot m_bot;
+TelegramAPI m_api;
+LongPoll    m_poll;
+uint32_t    tx;
+uint32_t    rx;
+uint32_t    tx_err;
+uint32_t    rx_err;
+TXMessages  tx_msgs;
+Replies     m_replies;
+Observers   m_observers;
 };
 
 class kint8_t
