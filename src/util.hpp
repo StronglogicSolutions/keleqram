@@ -9,13 +9,10 @@ namespace keleqram {
 using  TimePoint  = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration   = std::chrono::seconds;
 using  MessagePtr = TgBot::Message::Ptr;
-static std::string GetExecutableCWD()
-{
-  std::string full_path{realpath("/proc/self/exe", NULL)};
-  return full_path.substr(0, full_path.size() - (13));
-}
-static INIReader      config{"/data/stronglogic/kiq_telegram_bot/config/config.ini"};
-static const char*    CONFIG_SECTION{"keleqram"};
+
+static INIReader      config{""};
+static const char*    BOT_SECTION      {"bot"};
+static const char*    GREETING_SECTION {"greeting"};
 static const int32_t  TELEGRAM_CHAR_LIMIT{4096};
 static const uint32_t FIFTH_OF_DAY   {17280};
 static TimePoint      initial_time = std::chrono::system_clock::now();
@@ -48,6 +45,13 @@ static bool ActionTimer(uint32_t duration = FIFTH_OF_DAY)
   }
 
   return false;
+}
+
+[[ maybe_unused ]]
+static std::string GetExecutableCWD()
+{
+  std::string full_path{realpath("/proc/self/exe", NULL)};
+  return full_path.substr(0, full_path.size() - (13));
 }
 
 [[ maybe_unused ]]
@@ -270,15 +274,15 @@ static int32_t GetRandom(const int32_t& min, const int32_t& max)
 };
 
 [[ maybe_unused ]]
-static std::string GetConfigValue(const std::string& key)
+static std::string GetConfigValue(const std::string& section, const std::string& key, const std::string& fallback = "")
 {
-  return config.GetString(CONFIG_SECTION, key, "");
+  return config.GetString(section, key, fallback);
 }
 
 [[ maybe_unused ]]
 static void SetReplies(std::vector<std::string>& replies)
 {
-  std::string replies_s = GetConfigValue("replies");
+  std::string replies_s = GetConfigValue(BOT_SECTION, "replies");
   for (const auto& reply : StringTools::split(replies_s, '|'))
     replies.emplace_back(reply);
 }
