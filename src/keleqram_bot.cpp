@@ -2,13 +2,13 @@
 #include <chrono>
 
 namespace keleqram {
-static const char*       START_COMMAND   {"start"};
-static const char*       HELP_COMMAND    {"help"};
-static const char*       DELETE_COMMAND  {"delete"};
-static const char*       MESSAGE_COMMAND {"message"};
-static const char*       TOKEN           {""};
-static const char*       DEFAULT_REPLY   {"Defeat Global Fascism"};
-static const char*       MARKDOWN_MODE   {"Markdown"};
+static const char*       START_COMMAND     {"start"};
+static const char*       HELP_COMMAND      {"help"};
+static const char*       DELETE_COMMAND    {"delete"};
+static const char*       MESSAGE_COMMAND   {"message"};
+static const char*       TOKEN             {""};
+static const char*       DEFAULT_REPLY     {"Defeat Global Fascism"};
+static const char*       MARKDOWN_MODE     {"Markdown"};
 static const uint32_t    KANYE_URL_INDEX   {0};
 static const uint32_t    ZENQUOTE_URL_INDEX{1};
 static const uint32_t    BTC_URL_INDEX     {2};
@@ -54,9 +54,7 @@ static void LogMessage(const MessagePtr& message)
  */
 static bool IsAdmin(const int32_t& id)
 {
-  for (auto i = 0; i < ADMIN_NUM; i++)
-    if (ADMIN_IDs[i] == id)
-      return true;
+  for (auto i = 0; i < ADMIN_NUM; i++) if (ADMIN_IDs[i] == id) return true;
   return false;
 }
 
@@ -498,10 +496,10 @@ void KeleqramBot::HandleEvent(MessagePtr message)
 void KeleqramBot::DeleteMessages(MessagePtr message)
 {
   using ChatMsgs = std::vector<int32_t>;
-  const int64_t     chat_id  = message->chat->id;
-  const auto        action   = DeleteAction(message->text);
-        ChatMsgs&   messages = tx_msgs[chat_id];
-  if (action.valid && messages.size())
+  const int64_t   chat_id  = message->chat->id;
+  const auto      action   = DeleteAction(message->text);
+        ChatMsgs& messages = tx_msgs[chat_id];
+  if (action.valid && messages.size() >= action.n)
   {
     auto it = (messages.end() - action.n);
 
@@ -517,6 +515,8 @@ void KeleqramBot::DeleteMessages(MessagePtr message)
       }
     }
   }
+  else
+    log("Delete failed: argument is out of bounds");
 }
 
 /**
