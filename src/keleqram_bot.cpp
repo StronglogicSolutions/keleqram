@@ -60,6 +60,29 @@ static bool IsAdmin(const int32_t& id)
   return false;
 }
 
+static const std::unordered_map<std::string, std::string> GreetingOptions{
+  {"custom",  "/kanye        - Timeless advice and inspiration\n"
+              "/quote        - Quotes from persons that are not Kanye West\n"
+              "/btc          - Latest BTC price\n"
+              "/link         - Latest LINK price\n"
+              "/eth          - Latest Ethereum price\n"
+              "/insult       - You deserve what you get\n"
+              "/wiki <query> - Search Wikipedia```"},
+
+  {"default", "/kanye        - Timeless advice and inspiration\n"
+              "/quote        - Quotes from persons that are not Kanye West\n"
+              "/btc          - Latest BTC price\n"
+              "/link         - Latest LINK price\n"
+              "/eth          - Latest Ethereum price\n"
+              "/insult       - You deserve what you get\n"
+              "/wiki <query> - Search Wikipedia```"}
+};
+
+static std::string GetGreeting(const int64_t id)
+{
+  return GreetingOptions.at(GetConfigValue(GREETING_SECTION, std::to_string(id), "default"));
+}
+
 /**
  * Greeting
  *
@@ -67,22 +90,18 @@ static bool IsAdmin(const int32_t& id)
  */
 static std::string Greeting(MessagePtr& message)
 {
-  static const char* BotInfo{
-    "**Available commands:**\n```\n"
-    "/kanye        - Timeless advice and inspiration\n"
-    "/quote        - Quotes from persons that are not Kanye West\n"
-    "/btc          - Latest BTC price\n"
-    "/link         - Latest LINK price\n"
-    "/eth          - Latest Ethereum price\n"
-    "/insult       - You deserve what you get\n"
-    "/wiki <query> - Search Wikipedia```"};
-  const auto& name = (message->newChatMember) ?
-                      (message->newChatMember->firstName.empty()) ?
-                        message->from->firstName : message->newChatMember->firstName :
-                     (message->from) ? message->from->firstName : "the room";
-  const auto& room = message->chat->title;
-  return "Welcome to " + room + ", " + name + "\n\n" + BotInfo;
+  static const char* options_prefix = "**Available commands:**\n```\n";
+  const auto         cmd_options = options_prefix + GetGreeting(message->chat->id);
+  const auto&        room = message->chat->title;
+  const auto&        name = (message->newChatMember) ?
+                              (message->newChatMember->firstName.empty()) ?
+                                message->from->firstName : message->newChatMember->firstName :
+                              (message->from) ?
+                                message->from->firstName : "the room";
+
+  return "Welcome to " + room + ", " + name + "\n\n" + cmd_options;
 };
+
 
 /**
  * GetRequest
@@ -455,6 +474,11 @@ void KeleqramBot::HandleMessage(MessagePtr message)
   }
 }
 
+bool GroupHandlesEvents(int64_t id)
+{
+  return true;
+}
+
 /**
  * HandleEvent
  *
@@ -462,6 +486,8 @@ void KeleqramBot::HandleMessage(MessagePtr message)
  */
 void KeleqramBot::HandleEvent(MessagePtr message)
 {
+  if (!GroupHandlesEvents(message->chat->id)) return;
+
   if (message->newChatMember)
     SendMessage(Greeting(message), message->chat->id, MARKDOWN_MODE);
   else
@@ -519,7 +545,7 @@ int RunMain()
 {
   try
   {
-    KeleqramBot k_bot{};
+    KeleqramBot k_bot;
 
     for (;;)
       k_bot.Poll();
