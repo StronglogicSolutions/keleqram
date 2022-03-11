@@ -18,7 +18,7 @@ DeleteAction::DeleteAction(const std::string& s)
     valid           = true;
     const auto& rem = s.substr(prefix_length);
     if (isdigit(rem.front()))
-      n = std::stoi(rem);
+      n = std::stoul(rem);
   }
 }
 } // ns keleqram

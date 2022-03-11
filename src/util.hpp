@@ -21,10 +21,10 @@ struct DeleteAction
 {
   explicit DeleteAction(const std::string& s);
 
-  bool    delete_last;
-  bool    delete_back;
-  bool    valid;
-  int32_t n;
+  bool   delete_last;
+  bool   delete_back;
+  bool   valid;
+  size_t n;
 };
 
 /**
@@ -170,11 +170,11 @@ static std::string ExtractTempFilename(const std::string& full_url)
 {
   static const char* TEMP_FILE{"temp_file"};
 
-        auto ext_end = full_url.find_first_of('?');
-        ext_end      = ext_end == std::string::npos ? full_url.size() : ext_end;
-  const auto url     = full_url.substr(0, ext_end);
-  const auto ext_beg = url.find_last_of('.');
-  const auto ext_len = (ext_beg != url.npos) ? (url.size() - ext_beg) : 0;
+        auto ext_end  = full_url.find_first_of('?');
+             ext_end  = ext_end == std::string::npos ? full_url.size() : ext_end;
+  const auto url      = full_url.substr(0, ext_end);
+  const auto ext_beg  = url.find_last_of('.');
+  const auto ext_len  = (ext_beg != url.npos) ? (url.size() - ext_beg) : 0;
   const auto filename = (ext_len > 0) ? TEMP_FILE + url.substr(ext_beg, ext_len) : TEMP_FILE;
   return filename;
 }
