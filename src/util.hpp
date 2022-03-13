@@ -10,11 +10,11 @@ using  TimePoint  = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration   = std::chrono::seconds;
 using  MessagePtr = TgBot::Message::Ptr;
 
-static INIReader      config{""};
-static const char*    BOT_SECTION      {"bot"};
-static const char*    GREETING_SECTION {"greeting"};
+static INIReader      config             {""};
+static const char*    BOT_SECTION        {"bot"};
+static const char*    GREETING_SECTION   {"greeting"};
 static const int32_t  TELEGRAM_CHAR_LIMIT{4096};
-static const uint32_t FIFTH_OF_DAY   {17280};
+static const uint32_t FIFTH_OF_DAY       {17280};
 static TimePoint      initial_time = std::chrono::system_clock::now();
 
 struct DeleteAction
