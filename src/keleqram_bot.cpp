@@ -377,13 +377,9 @@ void KeleqramBot::SendMedia(const std::string& url,  const T& id)
   if (mime.name.empty())
     return log("Couldn't detect mime type");
 
-  auto result = (mime.IsPhoto()) ? m_api.sendPhoto(dest, TgBot::InputFile::fromFile(path, mime.name)) :
-                                   m_api.sendVideo(dest, TgBot::InputFile::fromFile(path, mime.name));
-
-  if (result)
-    log("Uploaded ", url.c_str(), " to " , std::to_string(dest).c_str());
-  else
-    log("Failed to upload media");
+  tx_msgs[dest].emplace_back((mime.IsPhoto()) ?
+    m_api.sendPhoto(dest, TgBot::InputFile::fromFile(path, mime.name))->messageId :
+    m_api.sendVideo(dest, TgBot::InputFile::fromFile(path, mime.name))->messageId;
 }
 
 template<typename T>
@@ -393,6 +389,7 @@ std::string KeleqramBot::SendPoll(const std::string& text, const T& id, const st
   try
   {
     MessagePtr poll_msg = m_api.sendPoll(dest, text, options);
+    tx_msgs[dest].emplace_back(poll_msg->messageId);
     return std::to_string(poll_msg->messageId);
   }
   catch (const std::exception& e)
