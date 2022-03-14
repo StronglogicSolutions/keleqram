@@ -18,13 +18,7 @@ static const uint32_t    LINK_URL_INDEX    {5};
 static const uint32_t    ETH_URL_INDEX     {6};
 static const uint32_t    GTRENDS_URL_INDEX {7}; // TODO: Add
 static const char*       URLS[] {
-  "https://api.kanye.rest/",
-  "https://zenquotes.io/api/random",
-  "https://blockchain.info/ticker",
-  "https://evilinsult.com/generate_insult.php?lang=en&type=json",
-  "https://en.wikipedia.org/w/api.php?action=query&utf8=&format=json&list=search&srsearch=",
-  "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=LINK&tsyms=USD",
-  "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD"
+
 };
 static const int64_t     CHAT_IDs[] {
 
@@ -379,7 +373,7 @@ void KeleqramBot::SendMedia(const std::string& url,  const T& id)
 
   tx_msgs[dest].emplace_back((mime.IsPhoto()) ?
     m_api.sendPhoto(dest, TgBot::InputFile::fromFile(path, mime.name))->messageId :
-    m_api.sendVideo(dest, TgBot::InputFile::fromFile(path, mime.name))->messageId;
+    m_api.sendVideo(dest, TgBot::InputFile::fromFile(path, mime.name))->messageId);
 }
 
 template<typename T>
