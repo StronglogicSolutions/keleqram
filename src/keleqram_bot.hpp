@@ -5,7 +5,7 @@
 namespace keleqram {
 using  TelegramException = TgBot::TgException;
 using  TXMessages        = std::unordered_map<int64_t, std::vector<int32_t>>;
-const extern int64_t DEFAULT_CHAT_ID;
+extern int64_t DEFAULT_CHAT_ID;
 
 template<typename... Args>
 static void log(Args... args)
@@ -31,6 +31,7 @@ using LongPoll    = TgBot::TgLongPoll;
 using TelegramBot = TgBot::Bot;
 using TelegramAPI = TgBot::Api;
 using Replies     = std::vector<std::string>;
+using Payload     = std::vector<std::string>;
 
 KeleqramBot(const std::string& token = "");
 
@@ -47,10 +48,14 @@ template<typename T>
 std::string SendPoll   (const std::string& text, const T& id, const std::vector<std::string>& options);
 std::string StopPoll   (const std::string& id, const std::string& poll_id);
 void        DeleteMessages(MessagePtr message);
+template <typename T>
+void        DeleteMessages(const T& id, const DeleteAction& action);
 void        AddObserver(ObserverFn fn_ptr);
+std::string GetRooms() const;
 
 private:
 bool        IsReply(const int64_t& chat_id, const int32_t& id);
+
 
 TelegramBot m_bot;
 TelegramAPI m_api;
@@ -62,27 +67,29 @@ uint32_t    rx_err;
 TXMessages  tx_msgs;
 Replies     m_replies;
 Observers   m_observers;
+Rooms       m_rooms;
 };
 
-class kint8_t
+template <typename T = size_t>
+class kint_t
 {
 public:
-kint8_t(uint8_t max_value = 5)
+kint_t(T max_value = 4)
 : m_value(0),
   m_max(max_value)
 {}
 
 
-uint8_t operator++(int)
+T operator++(int)
 {
-  const uint8_t ret = m_value;
-  m_value           = (m_value == m_max) ? 0 : m_value + 1;
+  const T ret = m_value;
+  m_value     = (m_value == m_max) ? 0 : m_value + 1;
   return ret;
 }
 
 private:
-uint8_t m_value;
-uint8_t m_max;
+T m_value;
+T m_max;
 };
 
 int RunMain();
