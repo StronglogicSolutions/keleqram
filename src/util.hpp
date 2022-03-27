@@ -10,7 +10,7 @@ using  TimePoint  = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration   = std::chrono::seconds;
 using  MessagePtr = TgBot::Message::Ptr;
 
-static INIReader      config             {"/data/stronglogic/kiq_telegram_bot/config/config.ini"};
+static INIReader      config             {""};
 static const char*    BOT_SECTION        {"bot"};
 static const char*    GREETING_SECTION   {"greeting"};
 static const char*    ROOMS_SECTION      {"rooms"};
