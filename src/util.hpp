@@ -10,30 +10,50 @@ using  TimePoint  = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration   = std::chrono::seconds;
 using  MessagePtr = TgBot::Message::Ptr;
 
-static INIReader      config{""};
-static const char*    BOT_SECTION      {"bot"};
-static const char*    GREETING_SECTION {"greeting"};
+static INIReader      config             {"/data/stronglogic/kiq_telegram_bot/config/config.ini"};
+static const char*    BOT_SECTION        {"bot"};
+static const char*    GREETING_SECTION   {"greeting"};
+static const char*    ROOMS_SECTION      {"rooms"};
 static const int32_t  TELEGRAM_CHAR_LIMIT{4096};
-static const uint32_t FIFTH_OF_DAY   {17280};
+static const uint32_t QUARTER_DAY        {21600};
 static TimePoint      initial_time = std::chrono::system_clock::now();
 
 struct DeleteAction
 {
   explicit DeleteAction(const std::string& s);
 
-  bool    delete_last;
-  bool    delete_back;
-  bool    valid;
-  int32_t n;
+  bool   delete_last;
+  bool   delete_back;
+  bool   valid;
+  size_t n;
 };
 
+struct Room
+{
+  int64_t     id;
+  std::string name;
+
+  std::string serialize() const { return std::to_string(id) + ',' + name; }
+
+  static Room deserialize(const std::string& room_s)
+  {
+    Room room;
+    if (auto idx = room_s.find(',') != std::string::npos)
+    {
+      room.id   = std::stoll(room_s.substr(0, idx - 1));
+      room.name = room_s.substr(idx + 1);
+    }
+    return room;
+  }
+};
+using Rooms = std::vector<Room>;
 /**
   ┌──────────────────────────────────────────────────────────┐
   │░░░░░░░░░░░░░░░░░░░░░░░░░░ Helpers ░░░░░░░░░░░░░░░░░░░░░░░│
   └──────────────────────────────────────────────────────────┘
 */
 [[ maybe_unused ]]
-static bool ActionTimer(uint32_t duration = FIFTH_OF_DAY)
+static bool ActionTimer(uint32_t duration = QUARTER_DAY)
 {
   const TimePoint now = std::chrono::system_clock::now();
   const int64_t   elapsed = std::chrono::duration_cast<Duration>(now - initial_time).count();
@@ -170,11 +190,11 @@ static std::string ExtractTempFilename(const std::string& full_url)
 {
   static const char* TEMP_FILE{"temp_file"};
 
-        auto ext_end = full_url.find_first_of('?');
-        ext_end      = ext_end == std::string::npos ? full_url.size() : ext_end;
-  const auto url     = full_url.substr(0, ext_end);
-  const auto ext_beg = url.find_last_of('.');
-  const auto ext_len = (ext_beg != url.npos) ? (url.size() - ext_beg) : 0;
+        auto ext_end  = full_url.find_first_of('?');
+             ext_end  = ext_end == std::string::npos ? full_url.size() : ext_end;
+  const auto url      = full_url.substr(0, ext_end);
+  const auto ext_beg  = url.find_last_of('.');
+  const auto ext_len  = (ext_beg != url.npos) ? (url.size() - ext_beg) : 0;
   const auto filename = (ext_len > 0) ? TEMP_FILE + url.substr(ext_beg, ext_len) : TEMP_FILE;
   return filename;
 }
@@ -273,10 +293,26 @@ static int32_t GetRandom(const int32_t& min, const int32_t& max)
   return dis(e);
 };
 
-[[ maybe_unused ]]
 static std::string GetConfigValue(const std::string& section, const std::string& key, const std::string& fallback = "")
 {
   return config.GetString(section, key, fallback);
+}
+
+[[ maybe_unused ]]
+static std::vector<Room> GetConfigRooms()
+{
+  std::vector<Room> rooms;
+  int  i   = 0;
+  auto v   = GetConfigValue(ROOMS_SECTION, std::to_string(i));
+  auto idx = v.find(',');
+  while (idx != std::string::npos)
+  {
+    rooms.push_back(Room{std::stoll(v.substr(0, idx)), v.substr(idx + 1)});
+    v = GetConfigValue(ROOMS_SECTION, std::to_string(++i));
+    idx = v.find(',');
+  }
+
+  return rooms;
 }
 
 [[ maybe_unused ]]

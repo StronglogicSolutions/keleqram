@@ -2,13 +2,13 @@
 #include <chrono>
 
 namespace keleqram {
-static const char*       START_COMMAND   {"start"};
-static const char*       HELP_COMMAND    {"help"};
-static const char*       DELETE_COMMAND  {"delete"};
-static const char*       MESSAGE_COMMAND {"message"};
-static const char*       TOKEN           {""};
-static const char*       DEFAULT_REPLY   {"Defeat Global Fascism"};
-static const char*       MARKDOWN_MODE   {"Markdown"};
+static const char*       START_COMMAND     {"start"};
+static const char*       HELP_COMMAND      {"help"};
+static const char*       DELETE_COMMAND    {"delete"};
+static const char*       MESSAGE_COMMAND   {"message"};
+static const char*       TOKEN             {""};
+static const char*       DEFAULT_REPLY     {"Defeat Global Fascism"};
+static const char*       MARKDOWN_MODE     {"Markdown"};
 static const uint32_t    KANYE_URL_INDEX   {0};
 static const uint32_t    ZENQUOTE_URL_INDEX{1};
 static const uint32_t    BTC_URL_INDEX     {2};
@@ -26,16 +26,11 @@ static const char*       URLS[] {
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=LINK&tsyms=USD",
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD"
 };
-static const int64_t     CHAT_IDs[] {
-
-};
-static const int32_t     ADMIN_IDs[] {
-
-};
+static bool              INITIALIZED = [] { if (config.ParseError() < 0) throw 666; return true; }();
+static const int32_t     ADMIN_IDs[] {};
 static const int32_t     ADMIN_NUM{0x01};
-       const int64_t     DEFAULT_CHAT_ID = *(CHAT_IDs);
-static kint8_t           chat_idx{};
-
+       int64_t           DEFAULT_CHAT_ID;
+static kint_t            chat_idx;
 /**
   ┌──────────────────────────────────────────────────────────┐
   │░░░░░░░░░░░░░░░░░░░░░░░░░░ Helpers ░░░░░░░░░░░░░░░░░░░░░░░│
@@ -54,9 +49,7 @@ static void LogMessage(const MessagePtr& message)
  */
 static bool IsAdmin(const int32_t& id)
 {
-  for (auto i = 0; i < ADMIN_NUM; i++)
-    if (ADMIN_IDs[i] == id)
-      return true;
+  for (auto i = 0; i < ADMIN_NUM; i++) if (ADMIN_IDs[i] == id) return true;
   return false;
 }
 
@@ -232,13 +225,13 @@ KeleqramBot::KeleqramBot(const std::string& token)
   rx(0),
   tx_err(0),
   rx_err(0),
-  tx_msgs(TXMessages{})
+  tx_msgs(TXMessages{}),
+  m_rooms(GetConfigRooms())
 {
+  if (m_rooms.empty())  throw std::invalid_argument{"Please add rooms to config file"};
 
-
-  if (config.ParseError() < 0)
-    throw std::invalid_argument{"Unable to load config"};
-
+  chat_idx = kint_t{m_rooms.size()};
+  DEFAULT_CHAT_ID = m_rooms.front().id;
   Hello(m_bot);
   SetListeners();
   SetReplies(m_replies);
@@ -251,7 +244,7 @@ void KeleqramBot::Poll()
 {
   m_poll.start();
   if (ActionTimer())
-    SendMessage(GetRequest(ZENQUOTE_URL_INDEX), CHAT_IDs[chat_idx++]);
+    SendMessage(GetRequest(ZENQUOTE_URL_INDEX), m_rooms.at(chat_idx++).id);
 }
 
 /**
@@ -356,7 +349,7 @@ void KeleqramBot::SendMessage(const std::string& message, const T& id, const std
   for (const auto& text : ChunkMessage(message))
   {
     tx_msgs[dest].emplace_back(m_api.sendMessage(dest, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
-    log("Sent ", text.c_str(), " to " , std::to_string(dest).c_str());
+    log("Sent \"", text.c_str(), "\" to " , std::to_string(dest).c_str());
   }
 }
 
@@ -379,13 +372,9 @@ void KeleqramBot::SendMedia(const std::string& url,  const T& id)
   if (mime.name.empty())
     return log("Couldn't detect mime type");
 
-  auto result = (mime.IsPhoto()) ? m_api.sendPhoto(dest, TgBot::InputFile::fromFile(path, mime.name)) :
-                                   m_api.sendVideo(dest, TgBot::InputFile::fromFile(path, mime.name));
-
-  if (result)
-    log("Uploaded ", url.c_str(), " to " , std::to_string(dest).c_str());
-  else
-    log("Failed to upload media");
+  tx_msgs[dest].emplace_back((mime.IsPhoto()) ?
+    m_api.sendPhoto(dest, TgBot::InputFile::fromFile(path, mime.name))->messageId :
+    m_api.sendVideo(dest, TgBot::InputFile::fromFile(path, mime.name))->messageId);
 }
 
 template<typename T>
@@ -395,6 +384,7 @@ std::string KeleqramBot::SendPoll(const std::string& text, const T& id, const st
   try
   {
     MessagePtr poll_msg = m_api.sendPoll(dest, text, options);
+    tx_msgs[dest].emplace_back(poll_msg->messageId);
     return std::to_string(poll_msg->messageId);
   }
   catch (const std::exception& e)
@@ -495,28 +485,45 @@ void KeleqramBot::HandleEvent(MessagePtr message)
     SendMessage("Good riddance", message->chat->id);
 }
 
-void KeleqramBot::DeleteMessages(MessagePtr message)
+template<typename T>
+void KeleqramBot::DeleteMessages(const T& id, const DeleteAction& action)
 {
   using ChatMsgs = std::vector<int32_t>;
-  const int64_t     chat_id  = message->chat->id;
-  const auto        action   = DeleteAction(message->text);
-        ChatMsgs&   messages = tx_msgs[chat_id];
-  if (action.valid && messages.size())
+  const int64_t dest = ValidateID(id);
+  ChatMsgs& messages = tx_msgs[dest];
+  if (action.valid && messages.size() >= action.n)
   {
     auto it = (messages.end() - action.n);
 
-    m_api.deleteMessage(chat_id, *(it));
+    m_api.deleteMessage(dest, *(it));
     it = messages.erase(it);
 
     if (action.delete_last)
     {
       while (it != messages.end())
       {
-        m_api.deleteMessage(chat_id, *(it));
+        m_api.deleteMessage(dest, *(it));
         it = messages.erase(it);
       }
     }
   }
+  else
+    log("Delete failed: argument is out of bounds");
+}
+
+void KeleqramBot::DeleteMessages(MessagePtr message)
+{
+  const int64_t   chat_id  = message->chat->id;
+  const auto      action   = DeleteAction(message->text);
+  DeleteMessages(chat_id, action);
+}
+
+std::string KeleqramBot::GetRooms() const
+{
+  std::string s;
+  for (const auto& room : m_rooms)  s += room.serialize() + '\n';
+  s.pop_back();
+  return s;
 }
 
 /**
@@ -535,6 +542,9 @@ template void        KeleqramBot::SendMedia  (const std::string& url,  const std
 template void        KeleqramBot::SendMedia  (const std::string& url,  const int64_t&     id);
 template std::string KeleqramBot::SendPoll   (const std::string& url,  const std::string& id, const std::vector<std::string>& options);
 template std::string KeleqramBot::SendPoll   (const std::string& url,  const int64_t&     id, const std::vector<std::string>& options);
+template void        KeleqramBot::DeleteMessages(const std::string& id, const DeleteAction& action);
+template void        KeleqramBot::DeleteMessages(const int64_t&     id, const DeleteAction& action);
+
 
 /**
  * RunMain
