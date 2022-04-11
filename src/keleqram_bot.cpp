@@ -230,7 +230,7 @@ KeleqramBot::KeleqramBot(const std::string& token)
 {
   if (m_rooms.empty())  throw std::invalid_argument{"Please add rooms to config file"};
 
-  chat_idx = kint_t{m_rooms.size()};
+  chat_idx = kint_t{m_rooms.size() - 1};
   DEFAULT_CHAT_ID = m_rooms.front().id;
   Hello(m_bot);
   SetListeners();
