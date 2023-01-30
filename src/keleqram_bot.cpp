@@ -26,7 +26,7 @@ static const char*       URLS[] {
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=LINK&tsyms=USD",
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD"
 };
-static bool              INITIALIZED = [] { if (config.ParseError() < 0) throw 666; return true; }();
+static bool              INITIALIZED = [] { if (config.ParseError() < 0) throw std::invalid_argument{"Config parse failed"}; return true; }();
 static const int32_t     ADMIN_IDs[] {};
 static const int32_t     ADMIN_NUM{0x01};
        int64_t           DEFAULT_CHAT_ID;
@@ -103,7 +103,7 @@ static std::string GetRequest(uint32_t url_index)
 {
   using namespace keleqram;
   std::string text{};
-  RequestResponse response{cpr::Get(cpr::Url{URLS[url_index]}, cpr::VerifySsl{false})};
+  RequestResponse response{cpr::Get(cpr::Url{URLS[url_index]})};
   if (!response.error)
   {
     switch (url_index)
@@ -167,7 +167,7 @@ static std::string GetWiki(std::string message)
 
   std::string text{};
   const std::string query = StringTools::urlEncode(message.substr(6));
-  RequestResponse   response{cpr::Get(cpr::Url{URLS[WIKI_URL_INDEX]} + query, cpr::VerifySsl{false})};
+  RequestResponse   response{cpr::Get(cpr::Url{URLS[WIKI_URL_INDEX]} + query)};
   if (!response.error)
   {
     auto json = response.json();
@@ -242,9 +242,20 @@ KeleqramBot::KeleqramBot(const std::string& token)
  */
 void KeleqramBot::Poll()
 {
-  m_poll.start();
-  if (ActionTimer())
-    SendMessage(GetRequest(ZENQUOTE_URL_INDEX), m_rooms.at(chat_idx++).id);
+  try
+  {
+    m_poll.start();
+    if (ActionTimer())
+      SendMessage(GetRequest(ZENQUOTE_URL_INDEX), m_rooms.at(chat_idx++).id);
+  }
+  catch (const std::exception& e)
+  {
+    log("Poll exception: ", e.what());
+  }
+  catch (...)
+  {
+    log("Poll exception");
+  }
 }
 
 /**
