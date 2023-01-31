@@ -325,4 +325,10 @@ static void SetReplies(std::vector<std::string>& replies)
   for (const auto& reply : StringTools::split(replies_s, '|'))
     replies.emplace_back(reply);
 }
+
+[[ maybe_unused ]]
+static nlohmann::json get_json(const cpr::Response& r)
+{
+  return nlohmann::json::parse(r.text, nullptr, false);
+}
 } // ns keleqram
