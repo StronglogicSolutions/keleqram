@@ -1,9 +1,11 @@
 #include <sstream>
-#include <tgbot/tgbot.h>
 #include <cctype>
-#include "request.hpp"
-#include "INIReader.h"
 #include <random>
+
+#include <tgbot/tgbot.h>
+#include <cpr/cpr.h>
+#include <nlohmann/json.hpp>
+#include "INIReader.h"
 
 namespace keleqram {
 using  TimePoint  = std::chrono::time_point<std::chrono::system_clock>;
@@ -205,8 +207,8 @@ static std::string FetchTemporaryFile(const std::string& full_url, const bool ve
   (void)(verify_ssl);
   const auto filename   = ExtractTempFilename(full_url);
   const cpr::Response r = cpr::Get(cpr::Url{full_url});
-  SaveToFile(r.text, filename);
-
+  std::ofstream o{filename};
+  o << r.text;
   return filename;
 }
 
