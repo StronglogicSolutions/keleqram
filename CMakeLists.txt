@@ -5,6 +5,7 @@ project(kiq_telegram)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -g")
 set(Boost_USE_MULTITHREADED ON)
 set (CPR_BUILD_TESTS OFF)
+
 if(CPR_INCLUDE)
   set(CPR_INCLUDE_PATH ${CPR_INCLUDE})
 else()
