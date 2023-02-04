@@ -1,9 +1,11 @@
 #include <sstream>
-#include <tgbot/tgbot.h>
 #include <cctype>
-#include "request.hpp"
-#include "INIReader.h"
 #include <random>
+
+#include <tgbot/tgbot.h>
+#include <cpr/cpr.h>
+#include <nlohmann/json.hpp>
+#include "INIReader.h"
 
 namespace keleqram {
 using  TimePoint  = std::chrono::time_point<std::chrono::system_clock>;
@@ -202,10 +204,11 @@ static std::string ExtractTempFilename(const std::string& full_url)
 [[ maybe_unused ]]
 static std::string FetchTemporaryFile(const std::string& full_url, const bool verify_ssl = true)
 {
+  (void)(verify_ssl);
   const auto filename   = ExtractTempFilename(full_url);
-  const cpr::Response r = cpr::Get(cpr::Url{full_url}, cpr::VerifySsl(verify_ssl));
-  SaveToFile(r.text, filename);
-
+  const cpr::Response r = cpr::Get(cpr::Url{full_url});
+  std::ofstream o{filename};
+  o << r.text;
   return filename;
 }
 
@@ -321,5 +324,11 @@ static void SetReplies(std::vector<std::string>& replies)
   std::string replies_s = GetConfigValue(BOT_SECTION, "replies");
   for (const auto& reply : StringTools::split(replies_s, '|'))
     replies.emplace_back(reply);
+}
+
+[[ maybe_unused ]]
+static nlohmann::json get_json(const cpr::Response& r)
+{
+  return nlohmann::json::parse(r.text, nullptr, false);
 }
 } // ns keleqram

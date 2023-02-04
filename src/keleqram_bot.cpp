@@ -26,7 +26,7 @@ static const char*       URLS[] {
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=LINK&tsyms=USD",
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD"
 };
-static bool              INITIALIZED = [] { if (config.ParseError() < 0) throw 666; return true; }();
+static bool              INITIALIZED = [] { if (config.ParseError() < 0) throw std::invalid_argument{"Config parse failed"}; return true; }();
 static const int32_t     ADMIN_IDs[] {};
 static const int32_t     ADMIN_NUM{0x01};
        int64_t           DEFAULT_CHAT_ID;
@@ -103,49 +103,44 @@ static std::string GetRequest(uint32_t url_index)
 {
   using namespace keleqram;
   std::string text{};
-  RequestResponse response{cpr::Get(cpr::Url{URLS[url_index]}, cpr::VerifySsl{false})};
-  if (!response.error)
+  const cpr::Response r = cpr::Get(cpr::Url{URLS[url_index]});
+  if (r.error.code == cpr::ErrorCode::OK)
   {
+    const auto json = get_json(r);
     switch (url_index)
     {
       case (KANYE_URL_INDEX):
       {
-        auto json = response.json();
         if (!json.is_null() && json.is_object())
           text += "Kanye says: \"" + json["quote"].get<std::string>() + '\"';
       }
       break;
       case (ZENQUOTE_URL_INDEX):
       {
-        auto json = response.json();
         if (!json.is_null() && json.is_array())
           text += json[0]["q"].get<std::string>();
       }
       break;
       case (INSULT_URL_INDEX):
       {
-        auto json = response.json();
         if (!json.is_null() && json.is_object())
           text += json["insult"].get<std::string>();
       }
       break;
       case (BTC_URL_INDEX):
       {
-        auto json = response.json();
         if (!json.is_null() && json.is_object())
           text += "BTC: $" + std::to_string(json["USD"]["last"].get<int32_t>()) + " USD";
       }
       break;
       case (LINK_URL_INDEX):
       {
-        auto json = response.json();
         if (!json.is_null() && json.is_object())
           text += "LINK: $" + FloatToDecimalString(json["RAW"]["LINK"]["USD"]["PRICE"].get<float>()) + " USD";
       }
       break;
       case (ETH_URL_INDEX):
       {
-        auto json = response.json();
         if (!json.is_null() && json.is_object())
           text += "ETH: $" + FloatToDecimalString(json["RAW"]["ETH"]["USD"]["PRICE"].get<float>()) + " USD";
       }
@@ -167,12 +162,11 @@ static std::string GetWiki(std::string message)
 
   std::string text{};
   const std::string query = StringTools::urlEncode(message.substr(6));
-  RequestResponse   response{cpr::Get(cpr::Url{URLS[WIKI_URL_INDEX]} + query, cpr::VerifySsl{false})};
-  if (!response.error)
+  const cpr::Response r = cpr::Get(cpr::Url{URLS[WIKI_URL_INDEX]} + query);
+  if (r.error.code != cpr::ErrorCode::OK)
   {
-    auto json = response.json();
-    if (IsValid(json))
-      text +=  ExtractWikiText(json);
+    if (const auto json = get_json(r); IsValid(json))
+      text += ExtractWikiText(json);
     else
       text += query + " was not found.";
   }
@@ -242,9 +236,20 @@ KeleqramBot::KeleqramBot(const std::string& token)
  */
 void KeleqramBot::Poll()
 {
-  m_poll.start();
-  if (ActionTimer())
-    SendMessage(GetRequest(ZENQUOTE_URL_INDEX), m_rooms.at(chat_idx++).id);
+  try
+  {
+    m_poll.start();
+    if (ActionTimer())
+      SendMessage(GetRequest(ZENQUOTE_URL_INDEX), m_rooms.at(chat_idx++).id);
+  }
+  catch (const std::exception& e)
+  {
+    log("Poll exception: ", e.what());
+  }
+  catch (...)
+  {
+    log("Poll exception");
+  }
 }
 
 /**
