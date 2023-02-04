@@ -5,7 +5,7 @@ project(kiq_telegram)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -g")
 set(Boost_USE_MULTITHREADED ON)
 set (CPR_BUILD_TESTS OFF)
-set(CPRLIB ${CMAKE_SOURCE_DIR}/third_party/cpr/build/lib/libcpr.so)
+set(CPRLIB /usr/local/lib/libcpr.so)
 
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
