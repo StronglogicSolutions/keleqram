@@ -16,8 +16,13 @@ find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Boost COMPONENTS system REQUIRED)
 find_package(CURL)
+find_library(PQXX_LIB pqxx)
+find_library(PQ_LIB pq)
+set(PQXX_STATIC_LIB "/usr/local/lib/libpqxx.a")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -g")
+set(KDB_STATIC_LIB ${CMAKE_SOURCE_DIR}/third_party/kdb/libkdb.a)
 
-include_directories(/usr/local/include src ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIR} third_party/inih/cpp ${CPR_INCLUDE_PATH})
+include_directories(/usr/local/include src ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIR} third_party/inih/cpp ${CPR_INCLUDE_PATH} third_party/kdb/include)
 
 if (CURL_FOUND)
     include_directories(${CURL_INCLUDE_DIRS})
@@ -39,5 +44,5 @@ set(SOURCE_FILES
 add_library(keleqram STATIC ${SOURCE_FILES})
 add_executable(${PROJECT_NAME} src/main.cpp)
 
-target_link_libraries(keleqram -lcpr TgBot ${CMAKE_THREAD_LIBS_INIT} ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES} ${CURL_LIBRARIES} nlohmann_json::nlohmann_json)
+target_link_libraries(keleqram -lcpr TgBot ${CMAKE_THREAD_LIBS_INIT} ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES} ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PQ_LIB} ${KDB_STATIC_LIB} ${PQXX_STATIC_LIB})
 target_link_libraries(${PROJECT_NAME} keleqram)
