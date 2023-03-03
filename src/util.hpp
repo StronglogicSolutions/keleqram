@@ -6,19 +6,53 @@
 #include <cpr/cpr.h>
 #include <nlohmann/json.hpp>
 #include "INIReader.h"
+#include <kdb.hpp>
 
 namespace keleqram {
 using  TimePoint  = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration   = std::chrono::seconds;
 using  MessagePtr = TgBot::Message::Ptr;
 
-static INIReader      config             {""};
+static INIReader      config             {"/data/stronglogic/kiq_telegram/config/config.ini"};
 static const char*    BOT_SECTION        {"bot"};
 static const char*    GREETING_SECTION   {"greeting"};
 static const char*    ROOMS_SECTION      {"rooms"};
 static const int32_t  TELEGRAM_CHAR_LIMIT{4096};
 static const uint32_t QUARTER_DAY        {21600};
 static TimePoint      initial_time = std::chrono::system_clock::now();
+
+static std::string GetConfigValue(const std::string& section, const std::string& key, const std::string& fallback = "")
+{
+  return config.GetString(section, key, fallback);
+}
+
+using message_ids_t = std::vector<int64_t>;
+class Database
+{
+public:
+  Database() = default;
+
+void save(std::string_view msg_id)
+{
+  m_db.insert("messages", {"message_id"}, {msg_id.data()});
+}
+
+message_ids_t
+get_messages()
+{
+  message_ids_t ids;
+  for (const auto& id : m_db.select("messages", {"message_id"}))
+    ids.push_back(std::stoll(id.second));
+  return ids;
+}
+
+private:
+kdb::KDB m_db{kdb::dbconfig{{
+  GetConfigValue("database", "user"),
+  GetConfigValue("database", "pass"),
+  GetConfigValue("database", "name"),
+}}};
+};
 
 struct DeleteAction
 {
@@ -295,11 +329,6 @@ static int32_t GetRandom(const int32_t& min, const int32_t& max)
   static std::uniform_int_distribution<int32_t> dis(min, max);
   return dis(e);
 };
-
-static std::string GetConfigValue(const std::string& section, const std::string& key, const std::string& fallback = "")
-{
-  return config.GetString(section, key, fallback);
-}
 
 [[ maybe_unused ]]
 static std::vector<Room> GetConfigRooms()
