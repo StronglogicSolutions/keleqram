@@ -6,54 +6,28 @@
 #include <cpr/cpr.h>
 #include <nlohmann/json.hpp>
 #include "INIReader.h"
-#include <kdb.hpp>
+#include <kutils.hpp>
 
+using namespace kutils;
 namespace keleqram {
 using  TimePoint  = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration   = std::chrono::seconds;
 using  MessagePtr = TgBot::Message::Ptr;
-
-static INIReader      config             {"/data/stronglogic/kiq_telegram/config/config.ini"};
+using  TXMessages = std::map<int64_t, std::vector<int32_t>>;
+//-------------------------------------------------------------
+static INIReader      config             {""};
 static const char*    BOT_SECTION        {"bot"};
 static const char*    GREETING_SECTION   {"greeting"};
 static const char*    ROOMS_SECTION      {"rooms"};
 static const int32_t  TELEGRAM_CHAR_LIMIT{4096};
 static const uint32_t QUARTER_DAY        {21600};
 static TimePoint      initial_time = std::chrono::system_clock::now();
-
+//-------------------------------------------------------------
 static std::string GetConfigValue(const std::string& section, const std::string& key, const std::string& fallback = "")
 {
   return config.GetString(section, key, fallback);
 }
-
-using message_ids_t = std::vector<int64_t>;
-class Database
-{
-public:
-  Database() = default;
-
-void save(std::string_view msg_id)
-{
-  m_db.insert("messages", {"message_id"}, {msg_id.data()});
-}
-
-message_ids_t
-get_messages()
-{
-  message_ids_t ids;
-  for (const auto& id : m_db.select("messages", {"message_id"}))
-    ids.push_back(std::stoll(id.second));
-  return ids;
-}
-
-private:
-kdb::KDB m_db{kdb::dbconfig{{
-  GetConfigValue("database", "user"),
-  GetConfigValue("database", "pass"),
-  GetConfigValue("database", "name"),
-}}};
-};
-
+//-------------------------------------------------------------
 struct DeleteAction
 {
   explicit DeleteAction(const std::string& s);
@@ -63,7 +37,7 @@ struct DeleteAction
   bool   valid;
   size_t n;
 };
-
+//-------------------------------------------------------------
 struct Room
 {
   int64_t     id;
@@ -102,30 +76,14 @@ static bool ActionTimer(uint32_t duration = QUARTER_DAY)
 
   return false;
 }
-
+//-------------------------------------------------------------
 [[ maybe_unused ]]
 static std::string GetExecutableCWD()
 {
   std::string full_path{realpath("/proc/self/exe", NULL)};
   return full_path.substr(0, full_path.size() - (13));
 }
-
-[[ maybe_unused ]]
-static std::string FloatToDecimalString(float n)
-{
-  std::stringstream ss;
-  ss << std::fixed << std::setprecision(2) << n;
-  return ss.str();
-}
-
-[[ maybe_unused ]]
-static std::string ToLower(const std::string& s)
-{
-  std::string t{s};
-  std::transform(t.begin(), t.end(), t.begin(), [](char c) { return tolower(c); });
-  return t;
-}
-
+//-------------------------------------------------------------
 [[ maybe_unused ]]
 static bool IsAllNum(const std::string& s)
 {
@@ -133,94 +91,13 @@ static bool IsAllNum(const std::string& s)
     if (!std::isdigit(c)) return false;
   return true;
 }
-
+//-------------------------------------------------------------
 [[ maybe_unused ]]
 static void Hello(TgBot::Bot& bot)
 {
   printf("Bot username: %s\n", bot.getApi().getMe()->username.c_str());
 }
-
-[[ maybe_unused ]]
-static std::string DecodeHTML(const std::string& text)
-{
-  std::string                                  decoded{};
-  std::unordered_map<std::string, std::string> convert({
-    {"&quot;",  "\""},
-    {"&apos;",  "'"},
-    {"&amp;",   "&"},
-    {"&gt;",    ">"},
-    {"&lt;",    "<"},
-    {"&frasl;", "/"}});
-
-  for (size_t i = 0; i < text.size(); ++i)
-  {
-    bool flag = false;
-    for (const auto& [key, value] : convert)
-    {
-      if (i + key.size() - 1 < text.size())
-      {
-        if (text.substr(i, key.size()) == key)
-        {
-          decoded += value;
-          i += key.size() - 1;
-          flag = true;
-          break;
-        }
-      }
-    }
-
-  if (!flag)
-    decoded += text[i];
-
-  }
-
-  return decoded;
-}
-
-struct MimeType
-{
-  std::string name;
-  bool        video;
-
-  bool IsVideo() const { return video;    }
-  bool IsPhoto() const { return !(video); }
-};
-
-[[ maybe_unused ]]
-static MimeType GetMimeType(const std::string& path)
-{
-  const auto it = path.find_last_of('.');
-  if (it != std::string::npos)
-  {
-    const auto extension = ToLower(path.substr(it + 1));
-
-    if (extension == "jpg" || extension == "jpeg")
-      return MimeType{"image/jpeg", false};
-    else
-    if (extension == "png")
-      return MimeType{"image/png", false};
-    else
-    if (extension == "gif")
-      return MimeType{"image/gif", false};
-    else
-    if (extension == "mp4")
-      return MimeType{"video/mp4", true};
-    else
-    if (extension == "mkv")
-      return MimeType{"video/mkv", true};
-    else
-    if (extension == "webm")
-      return MimeType{"video/webm", true};
-    else
-    if (extension == "mpeg")
-      return MimeType{"video/mpeg", true};
-    else
-    if (extension == "mov")
-      return MimeType{"video/quicktime", true};
-  }
-  return MimeType{"unknown", false};
-}
-
+//-------------------------------------------------------------
 [[ maybe_unused ]]
 static std::string ExtractTempFilename(const std::string& full_url)
 {
@@ -234,7 +111,7 @@ static std::string ExtractTempFilename(const std::string& full_url)
   const auto filename = (ext_len > 0) ? TEMP_FILE + url.substr(ext_beg, ext_len) : TEMP_FILE;
   return filename;
 }
-
+//-------------------------------------------------------------
 [[ maybe_unused ]]
 static std::string FetchTemporaryFile(const std::string& full_url, const bool verify_ssl = true)
 {
@@ -245,13 +122,7 @@ static std::string FetchTemporaryFile(const std::string& full_url, const bool ve
   o << r.text;
   return filename;
 }
-
-/**
- * @brief Chunk Message
- *
- * @param   [in]  {std::string} message
- * @returns [out] {std::vector<std::string>}
- */
+//-------------------------------------------------------------
 [[ maybe_unused ]]
 static std::vector<std::string> const ChunkMessage(const std::string& message) {
   static const uint32_t MAX_CHUNK_SIZE = TELEGRAM_CHAR_LIMIT - 6;
@@ -295,10 +166,7 @@ static std::vector<std::string> const ChunkMessage(const std::string& message) {
 
   return chunks;
 }
-
-/**
- *
- */
+//-------------------------------------------------------------
 [[ maybe_unused ]]
 static std::string ExtractWikiText(const nlohmann::json& json)
 {
@@ -320,7 +188,7 @@ static std::string ExtractWikiText(const nlohmann::json& json)
   auto decoded_text = DecodeHTML(text);
   return decoded_text;
 }
-
+//-------------------------------------------------------------
 [[ maybe_unused ]]
 static int32_t GetRandom(const int32_t& min, const int32_t& max)
 {
@@ -329,7 +197,7 @@ static int32_t GetRandom(const int32_t& min, const int32_t& max)
   static std::uniform_int_distribution<int32_t> dis(min, max);
   return dis(e);
 };
-
+//-------------------------------------------------------------
 [[ maybe_unused ]]
 static std::vector<Room> GetConfigRooms()
 {
@@ -346,7 +214,7 @@ static std::vector<Room> GetConfigRooms()
 
   return rooms;
 }
-
+//-------------------------------------------------------------
 [[ maybe_unused ]]
 static void SetReplies(std::vector<std::string>& replies)
 {
@@ -354,10 +222,41 @@ static void SetReplies(std::vector<std::string>& replies)
   for (const auto& reply : StringTools::split(replies_s, '|'))
     replies.emplace_back(reply);
 }
-
+//-------------------------------------------------------------
 [[ maybe_unused ]]
 static nlohmann::json get_json(const cpr::Response& r)
 {
   return nlohmann::json::parse(r.text, nullptr, false);
+}
+//-------------------------------------------------------------
+static void SaveMessages(const TXMessages& msgs)
+{
+  nlohmann::json json;
+  json = msgs;
+  SaveToFile(json.dump(), "messages.json");
+}
+//-------------------------------------------------------------
+static TXMessages GetSavedMessages()
+{
+  nlohmann::json json;
+  TXMessages     msgs;
+  if (const auto db = ReadFile("messages.json"); !db.empty())
+  {
+    json = db;
+    int64_t key;
+    if (!json.is_null() && json.is_string())
+      json = nlohmann::json::parse(json.get<std::string>());
+    log(json.dump());
+    for (const auto& room_data : json)
+      for (const auto& value : room_data)
+      {
+        if (!value.is_array())
+          key = value.get<int64_t>();
+        else
+          for (const auto& id : value)
+            msgs[key].push_back(id.get<int32_t>());
+      }
+  }
+  return msgs;
 }
 } // ns keleqram

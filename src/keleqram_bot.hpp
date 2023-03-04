@@ -4,7 +4,6 @@
 
 namespace keleqram {
 using  TelegramException = TgBot::TgException;
-using  TXMessages        = std::unordered_map<int64_t, std::vector<int32_t>>;
 extern int64_t DEFAULT_CHAT_ID;
 
 template<typename... Args>
