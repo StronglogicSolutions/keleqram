@@ -8,3 +8,4 @@ tag
 libkeleqram.a
 config
 tags
+messages.json

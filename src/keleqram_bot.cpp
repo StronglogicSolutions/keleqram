@@ -219,7 +219,7 @@ KeleqramBot::KeleqramBot(const std::string& token)
   rx(0),
   tx_err(0),
   rx_err(0),
-  tx_msgs(TXMessages{}),
+  tx_msgs(GetSavedMessages()),
   m_rooms(GetConfigRooms())
 {
   if (m_rooms.empty())  throw std::invalid_argument{"Please add rooms to config file"};
@@ -241,6 +241,7 @@ void KeleqramBot::Poll()
     m_poll.start();
     if (ActionTimer())
       SendMessage(GetRequest(ZENQUOTE_URL_INDEX), m_rooms.at(chat_idx++).id);
+    SaveMessages(tx_msgs);
   }
   catch (const std::exception& e)
   {
