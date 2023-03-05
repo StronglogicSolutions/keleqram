@@ -102,6 +102,7 @@ static std::string Greeting(MessagePtr& message)
 static std::string GetRequest(uint32_t url_index)
 {
   using namespace keleqram;
+  using namespace kutils;
   std::string text{};
   const cpr::Response r = cpr::Get(cpr::Url{URLS[url_index]});
   if (r.error.code == cpr::ErrorCode::OK)
@@ -180,6 +181,7 @@ static std::string GetWiki(std::string message)
  */
 static std::string HandleRequest(std::string message)
 {
+  using namespace kutils;
   if (message.find("@KIQ_TelegramBot")         != std::string::npos)
     return DEFAULT_REPLY;
   else
