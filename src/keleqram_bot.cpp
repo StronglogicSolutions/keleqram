@@ -371,6 +371,7 @@ void KeleqramBot::SendMessage(const std::string& message, const T& id, const std
 template<typename T>
 void KeleqramBot::SendMedia(const std::string& url,  const T& id)
 {
+  using namespace kutils;
   if (url.empty()) return;
 
   const int64_t dest = ValidateID(id);
