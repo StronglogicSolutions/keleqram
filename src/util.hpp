@@ -8,7 +8,6 @@
 #include "INIReader.h"
 #include <kutils.hpp>
 
-using namespace kutils;
 namespace keleqram {
 using  TimePoint  = std::chrono::time_point<std::chrono::system_clock>;
 using  Duration   = std::chrono::seconds;
@@ -185,7 +184,7 @@ static std::string ExtractWikiText(const nlohmann::json& json)
     }
   }
 
-  auto decoded_text = DecodeHTML(text);
+  auto decoded_text = kutils::DecodeHTML(text);
   return decoded_text;
 }
 //-------------------------------------------------------------
@@ -233,20 +232,20 @@ static void SaveMessages(const TXMessages& msgs)
 {
   nlohmann::json json;
   json = msgs;
-  SaveToFile(json.dump(), "messages.json");
+  kutils::SaveToFile(json.dump(), "messages.json");
 }
 //-------------------------------------------------------------
 static TXMessages GetSavedMessages()
 {
   nlohmann::json json;
   TXMessages     msgs;
-  if (const auto db = ReadFile("messages.json"); !db.empty())
+  if (const auto db = kutils::ReadFile("messages.json"); !db.empty())
   {
     json = db;
     int64_t key;
     if (!json.is_null() && json.is_string())
       json = nlohmann::json::parse(json.get<std::string>());
-    log(json.dump());
+    kutils::log(json.dump());
     for (const auto& room_data : json)
       for (const auto& value : room_data)
       {
