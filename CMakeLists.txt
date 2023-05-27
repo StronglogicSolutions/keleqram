@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.4)
 project(kiq_telegram)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -Wall -g")
 set(Boost_USE_MULTITHREADED ON)
 set (CPR_BUILD_TESTS OFF)
 
@@ -11,13 +11,14 @@ else()
   set(CPR_INCLUDE_PATH /usr/local/include/cpr)
 endif()
 
+set(KLOGGER "${CMAKE_SOURCE_DIR}/third_party/klogger/build/libklog.a")
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Boost COMPONENTS system REQUIRED)
+find_package(fmt CONFIG REQUIRED)
 find_package(CURL)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -g")
 
-include_directories(/usr/local/include src ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIR} third_party/inih/cpp ${CPR_INCLUDE_PATH} third_party/kutils/include)
+include_directories(/usr/local/include src ${OPENSSL_INCLUDE_DIR} ${Boost_INCLUDE_DIR} third_party/inih/cpp ${CPR_INCLUDE_PATH} third_party/kutils/include third_party/klogger/src)
 
 if (CURL_FOUND)
     include_directories(${CURL_INCLUDE_DIRS})
@@ -39,5 +40,5 @@ set(SOURCE_FILES
 add_library(keleqram STATIC ${SOURCE_FILES})
 add_executable(${PROJECT_NAME} src/main.cpp)
 
-target_link_libraries(keleqram -lcpr TgBot ${CMAKE_THREAD_LIBS_INIT} ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES} ${CURL_LIBRARIES} nlohmann_json::nlohmann_json)
-target_link_libraries(${PROJECT_NAME} keleqram)
+target_link_libraries(keleqram -lcpr TgBot ${CMAKE_THREAD_LIBS_INIT} ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES} ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${KLOGGER} fmt::fmt)
+target_link_libraries(${PROJECT_NAME} keleqram ${KLOGGER} fmt::fmt)

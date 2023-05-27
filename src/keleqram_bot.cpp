@@ -1,5 +1,6 @@
 #include "keleqram_bot.hpp"
 #include <chrono>
+#include <logger.hpp>
 
 namespace keleqram {
 static const char*       START_COMMAND     {"start"};
@@ -31,17 +32,20 @@ static const int32_t     ADMIN_IDs[] {};
 static const int32_t     ADMIN_NUM{0x01};
        int64_t           DEFAULT_CHAT_ID;
 static kint_t            chat_idx;
+
+using namespace kiq::log;
 /**
   ┌──────────────────────────────────────────────────────────┐
   │░░░░░░░░░░░░░░░░░░░░░░░░░░ Helpers ░░░░░░░░░░░░░░░░░░░░░░░│
   └──────────────────────────────────────────────────────────┘**/
 static void LogMessage(const MessagePtr& message)
 {
-  log(std::string{"User "                  }, message->from->firstName,
-      std::string{" with UID "             }, std::to_string(message->from->id),
-      std::string{" from chat "            }, message->chat->title,
-      std::string{" with ID "              }, std::to_string(message->chat->id),
-      std::string{" said the following: \n"}, message->text);
+  klog().t("User {} with UID {} from chat {} with ID {} said the following:\n{}",
+    message->from->firstName,
+    message->from->id ,
+    message->chat->title,
+    message->chat->id,
+    message->text);
 }
 
 /**
@@ -224,7 +228,7 @@ KeleqramBot::KeleqramBot(const std::string& token)
   tx_msgs(GetSavedMessages()),
   m_rooms(GetConfigRooms())
 {
-  if (m_rooms.empty())  throw std::invalid_argument{"Please add rooms to config file"};
+  if (m_rooms.empty()) throw std::invalid_argument{"Please add rooms to config file"};
 
   chat_idx = kint_t{m_rooms.size() - 1};
   DEFAULT_CHAT_ID = m_rooms.front().id;
@@ -247,11 +251,11 @@ void KeleqramBot::Poll()
   }
   catch (const std::exception& e)
   {
-    log("Poll exception: ", e.what());
+    klog().e("Poll exception: {}", e.what());
   }
   catch (...)
   {
-    log("Poll exception");
+    klog().e("Poll exception");
   }
 }
 
@@ -280,7 +284,7 @@ void KeleqramBot::HandlePrivateRequest(MessagePtr message)
   }
   catch (const std::exception& e)
   {
-    log("Failed to parse private message request. Exception: ", e.what());
+    klog().e("Failed to parse private message request. Exception: {}", e.what());
   }
 }
 
@@ -357,7 +361,7 @@ void KeleqramBot::SendMessage(const std::string& message, const T& id, const std
   for (const auto& text : ChunkMessage(message))
   {
     tx_msgs[dest].emplace_back(m_api.sendMessage(dest, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
-    log("Sent \"", text.c_str(), "\" to " , std::to_string(dest).c_str());
+    klog().e("Sent \"{}\" to {}", text, dest);
   }
 }
 
@@ -379,7 +383,10 @@ void KeleqramBot::SendMedia(const std::string& url,  const T& id)
   const auto    mime = GetMimeType(path);
 
   if (mime.name.empty())
-    return log("Couldn't detect mime type");
+  {
+    klog().w("Couldn't detect mime type");
+    return;
+  }
 
   tx_msgs[dest].emplace_back((mime.IsPhoto()) ?
     m_api.sendPhoto(dest, TgBot::InputFile::fromFile(path, mime.name))->messageId :
@@ -398,7 +405,7 @@ std::string KeleqramBot::SendPoll(const std::string& text, const T& id, const st
   }
   catch (const std::exception& e)
   {
-    log("Exception caught: ", e.what());
+    klog().e("Exception caught: {}", e.what());
     throw;
   }
 }
@@ -428,7 +435,7 @@ std::string KeleqramBot::StopPoll(const std::string& id, const std::string& poll
   }
   catch (const std::exception& e)
   {
-    log("Exception caught: ", e.what());
+    klog().e("Exception caught: {}", e.what());
     throw;
   }
 }
@@ -469,7 +476,7 @@ void KeleqramBot::HandleMessage(MessagePtr message)
   }
   catch (const std::exception& e)
   {
-    log("Exception: ", e.what());
+    klog().e("Exception: {}", e.what());
   }
 }
 
@@ -517,7 +524,7 @@ void KeleqramBot::DeleteMessages(const T& id, const DeleteAction& action)
     }
   }
   else
-    log("Delete failed: argument is out of bounds");
+    klog().e("Delete failed: argument is out of bounds");
 }
 
 void KeleqramBot::DeleteMessages(MessagePtr message)
@@ -564,6 +571,9 @@ int RunMain()
 {
   try
   {
+#ifndef NO_LOGGER
+    klogger::init("keleqram", "trace");
+#endif
     KeleqramBot k_bot;
 
     for (;;)
@@ -571,7 +581,7 @@ int RunMain()
   }
   catch (TelegramException& e)
   {
-    log("Exception: ", e.what());
+    klog().e("Exception: {}", e.what());
   }
   return 0;
 }
