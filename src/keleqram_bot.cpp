@@ -361,7 +361,7 @@ void KeleqramBot::SendMessage(const std::string& message, const T& id, const std
   for (const auto& text : ChunkMessage(message))
   {
     tx_msgs[dest].emplace_back(m_api.sendMessage(dest, text, PreviewsActive, NoReplyID, NoInterface, parse_mode)->messageId);
-    klog().e("Sent \"{}\" to {}", text, dest);
+    klog().i("Sent \"{}\" to {}", text, dest);
   }
 }
 
@@ -378,13 +378,15 @@ void KeleqramBot::SendMedia(const std::string& url,  const T& id)
   using namespace kutils;
   if (url.empty()) return;
 
+  auto is_local = [&url] { return url.find("https://") != std::string::npos; };
+
   const int64_t dest = ValidateID(id);
-  const auto    path = FetchTemporaryFile(url);
+  const auto    path = (is_local()) ? url : FetchTemporaryFile(url);
   const auto    mime = GetMimeType(path);
 
   if (mime.name.empty())
   {
-    klog().w("Couldn't detect mime type");
+    klog().e("Couldn't detect mime type");
     return;
   }
 
@@ -430,6 +432,7 @@ std::string KeleqramBot::StopPoll(const std::string& id, const std::string& poll
   const int64_t dest = ValidateID(id);
   try
   {
+    klog().d("Stopping poll {}", poll_id);
     PollPtr poll = m_api.stopPoll(dest, std::stoll(poll_id));
     return GetVoteJSON(poll->options);
   }
@@ -571,9 +574,8 @@ int RunMain()
 {
   try
   {
-#ifndef NO_LOGGER
     klogger::init("keleqram", "trace");
-#endif
+
     KeleqramBot k_bot;
 
     for (;;)
