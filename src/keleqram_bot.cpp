@@ -165,7 +165,9 @@ static std::string GetWiki(std::string message)
     return (!json.is_null() && json.is_object() && !json["query"]["search"].empty());
   };
 
-  std::string text{};
+  klog().i("Getting wiki for {}", message);
+
+  std::string text;
   const std::string query = StringTools::urlEncode(message.substr(6));
   const cpr::Response r = cpr::Get(cpr::Url{URLS[WIKI_URL_INDEX]} + query);
   if (r.error.code != cpr::ErrorCode::OK)
@@ -173,8 +175,11 @@ static std::string GetWiki(std::string message)
     if (const auto json = get_json(r); IsValid(json))
       text += ExtractWikiText(json);
     else
-      text += query + " was not found.";
+      text += query + " wiki response data was not valid.";
   }
+  else
+    klog().e("Response failed (Wiki). Code: {}  | Message: {} | Response: {}", r.error.code, r.error.message. r.);
+
   return text;
 }
 /**
