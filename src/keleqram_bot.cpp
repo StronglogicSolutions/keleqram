@@ -191,7 +191,7 @@ static std::string GetWiki(std::string message)
 static std::string HandleRequest(std::string message)
 {
   using namespace kutils;
-  if (message.find("@KIQ_TelegramBot")         != std::string::npos)
+  if (message.find("@KIQ_TelegramBot") != std::string::npos)
     return DEFAULT_REPLY;
   else
   if (ToLower(message).find("/kanye") != std::string::npos)
@@ -383,10 +383,11 @@ void KeleqramBot::SendMedia(const std::string& url,  const T& id)
   using namespace kutils;
   if (url.empty()) return;
 
-  auto is_local = [&url] { return url.find("https://") != std::string::npos; };
+  auto is_local = [&url] { return url.find("file://") != std::string::npos; };
+  auto strpprot = [&url] { return url.substr(url.find("://") + 3); };
 
   const int64_t dest = ValidateID(id);
-  const auto    path = (is_local()) ? url : FetchTemporaryFile(url);
+  const auto    path = (is_local()) ? strpprot() : FetchTemporaryFile(url);
   const auto    mime = GetMimeType(path);
 
   if (mime.name.empty())
