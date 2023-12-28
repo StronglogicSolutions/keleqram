@@ -156,7 +156,7 @@ static std::string GetRequest(uint32_t url_index)
       case (PQUOTE_URL_INDEX):
       {
         if (!json.is_null() && json.is_array())
-          text += r.text();
+          text += r.text;
       }
     }
   }
