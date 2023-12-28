@@ -17,7 +17,8 @@ static const uint32_t    INSULT_URL_INDEX  {3};
 static const uint32_t    WIKI_URL_INDEX    {4};
 static const uint32_t    LINK_URL_INDEX    {5};
 static const uint32_t    ETH_URL_INDEX     {6};
-static const uint32_t    GTRENDS_URL_INDEX {7}; // TODO: Add
+static const uint32_t    GTRENDS_URL_INDEX {7};
+static const uint32_t    PQUOTE_URL_INDEX  {8};
 static const char*       URLS[] {
   "https://api.kanye.rest/",
   "https://zenquotes.io/api/random",
@@ -25,7 +26,9 @@ static const char*       URLS[] {
   "https://evilinsult.com/generate_insult.php?lang=en&type=json",
   "https://en.wikipedia.org/w/api.php?action=query&utf8=&format=json&list=search&srsearch=",
   "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=LINK&tsyms=USD",
-  "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD"
+  "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD",
+  "",
+  "https://quotes.logicp.ca"
 };
 static bool              INITIALIZED = [] { if (config.ParseError() < 0) throw std::invalid_argument{"Config parse failed"}; return true; }();
 static const int32_t     ADMIN_IDs[] {};
@@ -45,7 +48,7 @@ static void LogMessage(const MessagePtr& message)
     message->from->id ,
     message->chat->title,
     message->chat->id,
-    message->text);
+    message->text.empty() ? "Media" : message->text);
 }
 
 /**
@@ -150,6 +153,11 @@ static std::string GetRequest(uint32_t url_index)
           text += "ETH: $" + FloatToDecimalString(json["RAW"]["ETH"]["USD"]["PRICE"].get<float>()) + " USD";
       }
       break;
+      case (PQUOTE_URL_INDEX):
+      {
+        if (!json.is_null() && json.is_array())
+          text += json[0]["q"].get<std::string>();
+      }
     }
   }
 
@@ -191,7 +199,8 @@ static std::string GetWiki(std::string message)
 static std::string HandleRequest(std::string message)
 {
   using namespace kutils;
-  if (message.find("@KIQ_TelegramBot") != std::string::npos)
+  if (message.find("@KIQ_TelegramBot") != std::string::npos ||
+      message.find("@StronglogicBot") != std::string::npos)
     return DEFAULT_REPLY;
   else
   if (ToLower(message).find("/kanye") != std::string::npos)
@@ -208,6 +217,8 @@ static std::string HandleRequest(std::string message)
     return GetRequest(INSULT_URL_INDEX);
   if (ToLower(message).find("/wiki") == 0)
     return GetWiki(message);
+  if (ToLower(message).find("/hegel") == 0)
+    return GetRequest(PQUOTE_URL_INDEX);
   return "";
 }
 
@@ -251,7 +262,7 @@ void KeleqramBot::Poll()
   {
     m_poll.start();
     if (ActionTimer())
-      SendMessage(GetRequest(ZENQUOTE_URL_INDEX), m_rooms.at(chat_idx++).id);
+      SendMessage(GetRequest(PQUOTE_URL_INDEX), m_rooms.at(chat_idx++).id);
     SaveMessages(tx_msgs);
   }
   catch (const std::exception& e)
