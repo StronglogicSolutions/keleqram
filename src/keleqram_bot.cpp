@@ -115,47 +115,47 @@ namespace keleqram
       const auto json = get_json(r);
       switch (url_index)
       {
-      case (KANYE_URL_INDEX):
-      {
-        if (!json.is_null() && json.is_object())
-          text += "Kanye says: \"" + json["quote"].get<std::string>() + '\"';
-      }
-      break;
-      case (ZENQUOTE_URL_INDEX):
-      {
-        if (!json.is_null() && json.is_array())
-          text += json[0]["q"].get<std::string>();
-      }
-      break;
-      case (INSULT_URL_INDEX):
-      {
-        if (!json.is_null() && json.is_object())
-          text += json["insult"].get<std::string>();
-      }
-      break;
-      case (BTC_URL_INDEX):
-      {
-        if (!json.is_null() && json.is_object())
-          text += "BTC: $" + std::to_string(json["USD"]["last"].get<int32_t>()) + " USD";
-      }
-      break;
-      case (LINK_URL_INDEX):
-      {
-        if (!json.is_null() && json.is_object())
-          text += "LINK: $" + FloatToDecimalString(json["RAW"]["LINK"]["USD"]["PRICE"].get<float>()) + " USD";
-      }
-      break;
-      case (ETH_URL_INDEX):
-      {
-        if (!json.is_null() && json.is_object())
-          text += "ETH: $" + FloatToDecimalString(json["RAW"]["ETH"]["USD"]["PRICE"].get<float>()) + " USD";
-      }
-      break;
-      case (PQUOTE_URL_INDEX):
-      {
-        if (!json.is_null() && json.is_object())
-          text += json["text"].get<std::string>();
-      }
+        case (KANYE_URL_INDEX):
+        {
+          if (!json.is_null() && json.is_object())
+            text += "Kanye says: \"" + json["quote"].get<std::string>() + '\"';
+        }
+        break;
+        case (ZENQUOTE_URL_INDEX):
+        {
+          if (!json.is_null() && json.is_array())
+            text += json[0]["q"].get<std::string>();
+        }
+        break;
+        case (INSULT_URL_INDEX):
+        {
+          if (!json.is_null() && json.is_object())
+            text += json["insult"].get<std::string>();
+        }
+        break;
+        case (BTC_URL_INDEX):
+        {
+          if (!json.is_null() && json.is_object())
+            text += "BTC: $" + std::to_string(json["USD"]["last"].get<int32_t>()) + " USD";
+        }
+        break;
+        case (LINK_URL_INDEX):
+        {
+          if (!json.is_null() && json.is_object())
+            text += "LINK: $" + FloatToDecimalString(json["RAW"]["LINK"]["USD"]["PRICE"].get<float>()) + " USD";
+        }
+        break;
+        case (ETH_URL_INDEX):
+        {
+          if (!json.is_null() && json.is_object())
+            text += "ETH: $" + FloatToDecimalString(json["RAW"]["ETH"]["USD"]["PRICE"].get<float>()) + " USD";
+        }
+        break;
+        case (PQUOTE_URL_INDEX):
+        {
+          if (!json.is_null() && json.is_object())
+            text += json["text"].get<std::string>();
+        }
       }
     }
 
