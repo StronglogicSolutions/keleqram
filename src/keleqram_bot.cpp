@@ -153,8 +153,8 @@ namespace keleqram
         break;
         case (PQUOTE_URL_INDEX):
         {
-          if (!json.is_null() && json.is_object())
-            text += json["text"].get<std::string>();
+          if (!json.is_null() && json.is_array() && !json.empty())
+             text += json.front()["text"].get<std::string>();
         }
       }
     }
