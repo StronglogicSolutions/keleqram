@@ -14,7 +14,7 @@ using  Duration   = std::chrono::seconds;
 using  MessagePtr = TgBot::Message::Ptr;
 using  TXMessages = std::map<int64_t, std::vector<int32_t>>;
 //-------------------------------------------------------------
-static INIReader      config             {"/data/stronglogic/kiq_telegram_bot/config/config.ini"};
+static INIReader      config             {""};
 static const char*    BOT_SECTION        {"bot"};
 static const char*    GREETING_SECTION   {"greeting"};
 static const char*    ROOMS_SECTION      {"rooms"};
