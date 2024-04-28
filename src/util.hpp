@@ -18,6 +18,7 @@ static INIReader      config             {""};
 static const char*    BOT_SECTION        {"bot"};
 static const char*    GREETING_SECTION   {"greeting"};
 static const char*    ROOMS_SECTION      {"rooms"};
+static const char*    CUSTOM_URL_SECTION {"custom_url"};
 static const int32_t  TELEGRAM_CHAR_LIMIT{4096};
 static const uint32_t QUARTER_DAY        {21600};
 static TimePoint      initial_time = std::chrono::system_clock::now();
@@ -41,6 +42,7 @@ struct Room
 {
   int64_t     id;
   std::string name;
+  long        url_index{ -1 };
 
   std::string serialize() const { return std::to_string(id) + ',' + name; }
 
@@ -54,6 +56,8 @@ struct Room
     }
     return room;
   }
+
+  bool has_url() const { return url_index > -1; }
 };
 using Rooms = std::vector<Room>;
 /**
@@ -202,12 +206,14 @@ static std::vector<Room> GetConfigRooms()
 {
   std::vector<Room> rooms;
   int  i   = 0;
-  auto v   = GetConfigValue(ROOMS_SECTION, std::to_string(i));
+  auto v   = config.GetString(ROOMS_SECTION, std::to_string(i), "");
   auto idx = v.find(',');
   while (idx != std::string::npos)
   {
-    rooms.push_back(Room{std::stoll(v.substr(0, idx)), v.substr(idx + 1)});
-    v = GetConfigValue(ROOMS_SECTION, std::to_string(++i));
+    const auto key = v.substr(0, idx);
+    const auto room_id = v.substr(idx + 1);
+    rooms.push_back(Room{ std::stoll(key), room_id, config.GetInteger(CUSTOM_URL_SECTION, key, -1) });
+    v = config.GetString(ROOMS_SECTION, std::to_string(i++), "");
     idx = v.find(',');
   }
 

@@ -153,8 +153,8 @@ namespace keleqram
         break;
         case (PQUOTE_URL_INDEX):
         {
-          if (!json.is_null() && json.is_object())
-            text += json["text"].get<std::string>();
+          if (!json.is_null() && json.is_array() && !json.empty())
+             text += json.front()["text"].get<std::string>();
         }
       }
     }
@@ -260,7 +260,11 @@ namespace keleqram
     {
       m_poll.start();
       if (ActionTimer())
-        SendMessage(GetRequest(PQUOTE_URL_INDEX), m_rooms.at(chat_idx++).id);
+        if (const auto room = m_rooms.at(chat_idx++); room.has_url())
+        {
+          klog().d("Auto-posting in {}", room.name);
+          SendMessage(GetRequest(room.url_index), room.id);
+        }
       SaveMessages(tx_msgs);
     }
     catch (const std::exception &e)
